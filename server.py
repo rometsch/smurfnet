@@ -1,27 +1,23 @@
+#!/usr/bin/env python3
+import argparse
 import pickle
 import socketserver
 import simdata
+import threading
 
-PORT = 9998
 
-def serialize_simdata_2d(simid, Noutput):
+def serialize_simdata_2d(simid, query):
+    query_dict = query
+    print(query_dict)
     d = simdata.SData(simid)
-    rv = {"Nfinal" : len(d.fluids["gas"].get_time("2d", "mass density"))-1}
-    for key in ["mass density", "energy density", "velocity radial", "velocity azimuthal", "pressure"]:
-        try:
-            field = d.fluids["gas"].get("2d", key, Noutput)
-        except KeyError as e:
-            pass
-        rv[key] = {
-            "Noutput" : Noutput,
-            "time" : field.time.cgs.value,
-            "units" : "cgs",
-            "name" : field.name,
-            "r" : field.grid.get_coordinates("r").cgs.value,
-            "phi" : field.grid.get_coordinates("phi").cgs.value,
-            "values" : field.data.cgs.value
-        }
+
+    rv = {
+        "simid": simid,
+        "query": query,
+        "data": d.get(**query_dict)
+    }
     return rv
+
 
 class MyTCPHandler(socketserver.BaseRequestHandler):
     """
@@ -33,33 +29,49 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     """
 
     def handle(self):
+
         # self.request is the TCP socket connected to the client
         try:
             self.data = self.request.recv(4096)
-            
+
+            try:
+                if self.data.decode() == "kill_server":
+                    print("Shutting down server...")
+                    self.server.shutdown()
+                    return
+            except (AttributeError, UnicodeDecodeError):
+                pass
+
             request = pickle.loads(self.data)
             print("{} wrote:".format(self.client_address[0]))
             print(request)
-            
+
             print("Getting simulation data")
             simid = request["simid"]
-            Noutput = request["Noutput"]
-            ddict = serialize_simdata_2d(simid, Noutput)
-            payload = pickle.dumps(ddict)            
+            query = request["query"]
+            ddict = serialize_simdata_2d(simid, query)
+            payload = pickle.dumps(ddict)
 
             # answer = request
-            print(f"Sending simulation data for {simid} at {Noutput}")
+            print(f"Sending simulation data for {simid} with query: {query}")
 
             self.request.send(payload)
         except Exception as e:
-            print(e)
-            self.request.sendall(pickle.dumps(str(e)))
+            raise
+            # print(e)
+            # self.request.sendall(pickle.dumps(str(e)))
+
+
+class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    pass
+
 
 if __name__ == "__main__":
-    HOST, PORT = "localhost", PORT
+    HOST, PORT = "localhost", 9998
 
+    socketserver.TCPServer.allow_reuse_address = True
     # Create the server, binding to localhost on port 9999
-    with socketserver.TCPServer((HOST, PORT), MyTCPHandler) as server:
+    with ThreadedTCPServer((HOST, PORT), MyTCPHandler) as server:
         # Activate the server; this will keep running until you
         # interrupt the program with Ctrl-C
-        server.serve_forever(poll_interval=1)
+        server.serve_forever()
