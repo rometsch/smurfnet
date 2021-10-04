@@ -3,7 +3,12 @@ import argparse
 import pickle
 import socketserver
 import simdata
-import threading
+from multiprocessing import Process
+import os
+import json
+import sys
+
+import subprocess
 
 
 def serialize_simdata_2d(simid, query):
@@ -66,12 +71,101 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 
-if __name__ == "__main__":
-    HOST, PORT = "localhost", 9998
-
+def start_server(host, port):
     socketserver.TCPServer.allow_reuse_address = True
-    # Create the server, binding to localhost on port 9999
-    with ThreadedTCPServer((HOST, PORT), MyTCPHandler) as server:
+    # Create the server, binding to 'host' on port 'port'
+
+    write_port(port)
+    write_pid()
+
+    with ThreadedTCPServer((host, port), MyTCPHandler) as server:
         # Activate the server; this will keep running until you
         # interrupt the program with Ctrl-C
         server.serve_forever()
+
+
+def get_open_port():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    s.listen(1)
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def appdir():
+    appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
+    os.makedirs(appdir, exist_ok=True)
+    return appdir
+
+
+def write_port(port):
+    portfile = os.path.join(appdir(), "port")
+    with open(portfile, "w") as outfile:
+        print(f"{port}", file=outfile)
+
+
+def write_pid():
+    pidfile = os.path.join(appdir(), "pid")
+    pid = os.getpid()
+    with open(pidfile, "w") as outfile:
+        print(f"{pid}", file=outfile)
+
+
+def read_port():
+    filename = os.path.join(appdir(), "port")
+    with open(filename, "r") as infile:
+        rv = int(infile.read().strip())
+    return rv
+
+
+def read_pid():
+    filename = os.path.join(appdir(), "pid")
+    with open(filename, "r") as infile:
+        rv = int(infile.read().strip())
+    return rv
+
+
+def check_pid(pid):
+    """ Check For the existence of a unix pid. """
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    else:
+        return True
+
+
+def check_running():
+    pid = read_pid()
+    return check_pid(pid)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", type=str, default="localhost",
+                        help="Server address")
+    parser.add_argument("--port", type=int, default=0,
+                        help="Server port")
+    parser.add_argument("--start", action="store_true")
+    options = parser.parse_args()
+
+    if options.start:
+        # definitely start a server
+        start_server(options.host, options.port)
+    else:
+        if check_running() and (options.port == 0 or options.port == read_port()):
+        # if a server is running and the port matches the running server's port, use it
+            port = read_port()
+            print(port)
+        else:
+        # otherwise launch a new server with this port
+            if options.port == 0:
+                port = get_open_port()
+            else:
+                port = options.port
+            subprocess.Popen(["python3", __file__, "--host", options.host, "--port", f"{port}", "--start"],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+            print(port)
