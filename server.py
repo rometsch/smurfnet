@@ -5,8 +5,7 @@ import socketserver
 import simdata
 from multiprocessing import Process
 import os
-import json
-import sys
+import time
 
 import subprocess
 
@@ -171,10 +170,17 @@ def launch_server(host, port):
     if port == 0:
         port = get_open_port()
 
+    write_port(0)
     subprocess.Popen(["python3", __file__, "--host", host, "--port", f"{port}", "--start"],
                      stdout=subprocess.PIPE,
                      stderr=subprocess.PIPE)
-    print(port)
+    
+    for _ in range(1000):
+        time.sleep(0.001)
+        port = read_port()
+        if port != 0:
+            print(port)
+            break
 
 
 if __name__ == "__main__":
