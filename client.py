@@ -6,13 +6,30 @@ import pickle
 import argparse
 import os
 import json
+import subprocess
 
 HOST = 'localhost'
-PORT = 19998
-
 
 valid_filename_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
 char_limit = 255
+
+
+def appdir():
+    appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
+    os.makedirs(appdir, exist_ok=True)
+    return appdir
+
+
+def main():
+
+    options = parse_args()
+    port = options.port
+    if options.ping:
+        print(ping_server(port))
+    elif options.kill:
+        kill_server(port)
+    else:
+        rec_data(options)
 
 
 def clean_filename(filename, whitelist=valid_filename_chars, replace=' '):
@@ -55,13 +72,12 @@ def dict_filename(d):
     return rv
 
 
-def send_request(payload):
-    port = PORT
-    
+def send_request(payload, port):
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
         port = 19998
-        print(HOST, port)
+        print("sending request to", HOST, port)
         sock.connect((HOST, port))
         sock.sendall(payload)
 
@@ -75,7 +91,8 @@ def send_request(payload):
 
     return received
 
-def get_2d_data(simid, query):
+
+def get_simdata(simid, query, port):
 
     request = {
         "simid": simid,
@@ -85,7 +102,7 @@ def get_2d_data(simid, query):
     # Pickle the object and send it to the server
     data_string = pickle.dumps(variable)
 
-    received = send_request(data_string)
+    received = send_request(data_string, port)
 
     answer = pickle.loads(received)
 
@@ -97,6 +114,7 @@ def get_2d_data(simid, query):
 
     return rv
 
+
 def rec_data(options):
     query = {
         "var": options.var,
@@ -107,7 +125,7 @@ def rec_data(options):
 
     simid = options.simid
 
-    data = get_2d_data(simid, query)
+    data = get_simdata(simid, query, options.port)
 
     print(f"Obtained data for {simid} at {query}")
 
@@ -120,18 +138,39 @@ def rec_data(options):
     with open(outfile, "wb") as of:
         pickle.dump(data, of)
 
-def kill_server():
-    send_request("kill_server".encode())
 
-def main():
+def kill_server(port):
+    send_request("kill_server".encode(), port)
 
-    options = parse_args()
-    if options.kill:
-        kill_server()
-    else:
-        rec_data(options)
 
-    
+def ping_server(port):
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        # Connect to server and send data
+        print("pinging server", HOST, port)
+        sock.connect((HOST, port))
+        sock.sendall("ping".encode())
+
+        received = sock.recv(1024)
+
+    rv = received.decode() == "ping"
+    return rv
+
+
+def get_open_port():
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    s.listen(1)
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def SSHTunnel(host, localport, remoteport):
+    sshproc = subprocess.Popen(
+        ["ssh", "-L", f"{localport}:localhost:{remoteport}", host])
+    return sshproc
 
 
 def parse_args():
@@ -150,6 +189,8 @@ def parse_args():
                         help="Output file to store the data in.")
     parser.add_argument("-k", "--kill", action="store_true",
                         help="Kill the server.")
+    parser.add_argument("--port", type=int, help="Server port", default=19998)
+    parser.add_argument("--ping", action="store_true", help="Ping the server.")
     options = parser.parse_args()
     return options
 
