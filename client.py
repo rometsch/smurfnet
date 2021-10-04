@@ -150,7 +150,6 @@ def send_request(payload, port):
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
-        print("sending request to", HOST, port, payload)
         sock.connect((HOST, port))
         sock.sendall(payload)
 
@@ -247,10 +246,10 @@ def get_open_port():
     return port
 
 
-def SSHTunnel(host, localport, remoteport):
-    logging.info(f"Setting up ssh tunnel from local port '{localport}' to host '{host}' port '{remoteport}'")
+def SSHTunnel(hostname, localport, remoteport):
+    logging.info(f"Setting up ssh tunnel from local port '{localport}' to host '{hostname}' port '{remoteport}'")
     sshproc = subprocess.Popen(
-        ["ssh", "-f", "-L", f"{localport}:localhost:{remoteport}", host])
+        ["ssh", "-f", "-N", "-L", f"{localport}:localhost:{remoteport}", hostname], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     return sshproc
 
 
