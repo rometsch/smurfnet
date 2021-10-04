@@ -3,9 +3,9 @@ import argparse
 import pickle
 import socketserver
 import simdata
-from multiprocessing import Process
 import os
 import time
+import traceback
 
 import subprocess
 
@@ -83,8 +83,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.request.send(payload)
         except Exception as e:
             logging.info(
-                f"REQUEST: Exception while loading data: {e}")
-            self.request.sendall(pickle.dumps(str(e)))
+                f"REQUEST: Exception while loading data: {traceback.format_exc()}")
+            self.request.sendall(pickle.dumps("{}".format(traceback.format_exc())))
 
 
 def get_open_port():
