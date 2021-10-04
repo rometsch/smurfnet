@@ -49,7 +49,7 @@ def main():
         if hostname is not None:
             port = ensure_server(hostname)
             handle_options(options, port)
-            
+
 
 def handle_options(options, port):
 
@@ -108,10 +108,11 @@ def start_server_remote(hostname):
         raise RuntimeError(f"Could not start server on '{hostname}'")
     logging.info(f"Server runs on port '{remoteport}' on host '{hostname}'")
     
-    localport = get_open_port()
-    
-    SSHTunnel(hostname, localport, remoteport)
-    
+    if hostname == "localhost":
+        localport = get_open_port()
+        SSHTunnel(hostname, localport, remoteport)
+    else:
+        localport = remoteport
     return localport
 
 
