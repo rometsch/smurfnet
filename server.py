@@ -84,7 +84,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.request.send(payload)
         except Exception as e:
             logging.info(
-                f"REQUEST: Encountered exception while loading data: {e}")
+                f"REQUEST: Exception while loading data: {e}")
             self.request.sendall(pickle.dumps(str(e)))
 
 
@@ -113,15 +113,21 @@ def write_pid():
 
 def read_port():
     filename = os.path.join(appdir(), "port")
-    with open(filename, "r") as infile:
-        rv = int(infile.read().strip())
+    try:
+        with open(filename, "r") as infile:
+            rv = int(infile.read().strip())
+    except FileNotFoundError:
+        rv = 0
     return rv
 
 
 def read_pid():
     filename = os.path.join(appdir(), "pid")
-    with open(filename, "r") as infile:
-        rv = int(infile.read().strip())
+    try:
+        with open(filename, "r") as infile:
+            rv = int(infile.read().strip())
+    except FileNotFoundError:
+        rv = -1
     return rv
 
 
