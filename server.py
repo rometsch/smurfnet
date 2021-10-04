@@ -116,7 +116,7 @@ def read_port():
         with open(filename, "r") as infile:
             rv = int(infile.read().strip())
     except FileNotFoundError:
-        rv = 0
+        rv = -1
     return rv
 
 
@@ -151,6 +151,9 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 def start_server(host, port):
 
+    if port < 0:
+        port = get_open_port()
+
     logging.info("-"*40)
     logging.info(
         f"Starting server process on host {host} on port {port} with pid {os.getpid()}")
@@ -167,10 +170,10 @@ def start_server(host, port):
 
 
 def launch_server(host, port):
-    if port == 0:
+    if port <= 0:
         port = get_open_port()
 
-    write_port(0)
+    write_port(-1)
     subprocess.Popen(["python3", __file__, "--host", host, "--port", f"{port}", "--start"],
                      stdout=subprocess.PIPE,
                      stderr=subprocess.PIPE)
@@ -178,7 +181,7 @@ def launch_server(host, port):
     for _ in range(1000):
         time.sleep(0.001)
         port = read_port()
-        if port != 0:
+        if port > 0:
             print(port)
             break
 
@@ -187,7 +190,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost",
                         help="Server address")
-    parser.add_argument("--port", type=int, default=0,
+    parser.add_argument("--port", type=int, default=-1,
                         help="Server port")
     parser.add_argument("--start", action="store_true")
     parser.add_argument("--restart", action="store_true")
@@ -203,7 +206,7 @@ if __name__ == "__main__":
             pid = read_pid()
             logging.info(f"Killing old server with pid {pid}")
             os.kill(pid, 15)
-        if options.port == 0:
+        if options.port == -1:
             # reuse old port if none is provided
             port = read_port()
         else:
@@ -211,7 +214,7 @@ if __name__ == "__main__":
         launch_server(options.host, port)
 
     else:
-        if check_running() and (options.port == 0 or options.port == read_port()):
+        if (check_running() and read_port() > 0) and (options.port == -1 or options.port == read_port()):
             # if a server is running and the port matches the running server's port, use it
             port = read_port()
             logging.info(f"Reporting existing server running on port {port}.")
