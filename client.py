@@ -7,6 +7,9 @@ import argparse
 import os
 import json
 import subprocess
+import smurf.search
+import logging
+import sys
 
 HOST = 'localhost'
 
@@ -19,17 +22,88 @@ def appdir():
     os.makedirs(appdir, exist_ok=True)
     return appdir
 
+logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
+                    filemode='a',
+                    level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s %(message)s')
 
 def main():
-
+    
     options = parse_args()
-    port = options.port
+    if options.v:
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        logging.getLogger().addHandler(stdout_handler)
+
+    if options.simid is not None:
+        hostname = get_hostname(options.simid)
+        port = ensure_server(hostname)
+        options.port = port
+    else:
+        port = options.port
+    
     if options.ping:
         print(ping_server(port))
     elif options.kill:
         kill_server(port)
     else:
-        rec_data(options)
+        try:
+            rec_data(options, port)
+        except (ConnectionRefusedError, ConnectionResetError):
+            port = ensure_server(hostname)
+            rec_data(options, port)
+                
+def ensure_server(hostname):
+    oldport = read_portfile(hostname)
+
+    if oldport == 0 or not ping_server(int(oldport)):
+        port = start_server_remote(hostname)
+        write_portfile(hostname, port)
+    else:
+        port = oldport
+    return int(port)
+
+def get_hostname(simid):
+    logging.info(f"Looking up hostname for simid '{simid}'")    
+    siminfo = smurf.search.search(simid)[0]
+    return siminfo["host"]
+
+def read_portfile(hostname):
+    portfile = os.path.join(appdir(), f"{hostname}.port")
+    try:
+        with open(portfile, "r") as infile:
+            rv = infile.read().strip()
+    except FileNotFoundError:
+        rv = 0
+    return rv
+
+
+def write_portfile(hostname, port):
+    logging.info(f"Saving port '{port}' for host '{hostname}'")
+    portfile = os.path.join(appdir(), f"{hostname}.port")
+    with open(portfile, "w") as outfile:
+        print(port, file=outfile)
+
+
+def get_hostport(hostname):
+    oldport = read_portfile(hostname)
+    return int(oldport)
+
+def start_server_remote(hostname):
+    logging.info(f"Starting a server on host '{hostname}'")
+    cmd = ["ssh", hostname, "python3", "server.py"]
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    remoteport = res.stdout.decode().strip()
+    if res.returncode != 0:
+        logging.error(f"Received non-zero return code from server start on '{hostname}'")
+        logging.error(res.stderr.decode().strip())
+        raise RuntimeError(f"Could not start server on '{hostname}'")
+    logging.info(f"Server runs on port '{remoteport}' on host '{hostname}'")
+    
+    localport = get_open_port()
+    
+    SSHTunnel(hostname, localport, remoteport)
+    
+    return localport
 
 
 def clean_filename(filename, whitelist=valid_filename_chars, replace=' '):
@@ -76,8 +150,7 @@ def send_request(payload, port):
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
-        port = 19998
-        print("sending request to", HOST, port)
+        print("sending request to", HOST, port, payload)
         sock.connect((HOST, port))
         sock.sendall(payload)
 
@@ -115,7 +188,7 @@ def get_simdata(simid, query, port):
     return rv
 
 
-def rec_data(options):
+def rec_data(options, port):
     query = {
         "var": options.var,
         "N": options.N,
@@ -125,7 +198,7 @@ def rec_data(options):
 
     simid = options.simid
 
-    data = get_simdata(simid, query, options.port)
+    data = get_simdata(simid, query, port)
 
     print(f"Obtained data for {simid} at {query}")
 
@@ -145,15 +218,22 @@ def kill_server(port):
 
 def ping_server(port):
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        # Connect to server and send data
-        print("pinging server", HOST, port)
-        sock.connect((HOST, port))
-        sock.sendall("ping".encode())
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            # Connect to server and send data
+            logging.info(f"Pinging server on port {port}")
+            sock.connect((HOST, port))
+            sock.sendall("ping".encode())
 
-        received = sock.recv(1024)
+            received = sock.recv(1024)
 
-    rv = received.decode() == "ping"
+        rv = received.decode() == "ping"
+    except (ConnectionRefusedError, ConnectionResetError) as e:
+        logging.warning(f"Received '{e}' from pinning port {port}")
+        rv = False
+        
+    logging.info(f"Ping successful? {rv}")
+
     return rv
 
 
@@ -168,8 +248,9 @@ def get_open_port():
 
 
 def SSHTunnel(host, localport, remoteport):
+    logging.info(f"Setting up ssh tunnel from local port '{localport}' to host '{host}' port '{remoteport}'")
     sshproc = subprocess.Popen(
-        ["ssh", "-L", f"{localport}:localhost:{remoteport}", host])
+        ["ssh", "-f", "-L", f"{localport}:localhost:{remoteport}", host])
     return sshproc
 
 
@@ -191,6 +272,7 @@ def parse_args():
                         help="Kill the server.")
     parser.add_argument("--port", type=int, help="Server port", default=19998)
     parser.add_argument("--ping", action="store_true", help="Ping the server.")
+    parser.add_argument("-v", action="store_true", help="Enable verbose output.")
     options = parser.parse_args()
     return options
 
