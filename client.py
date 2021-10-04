@@ -36,22 +36,30 @@ def main():
 
     if options.simid is not None:
         hostname = get_hostname(options.simid)
-        port = ensure_server(hostname)
+        port = get_hostport(hostname)
         options.port = port
     else:
+        hostname = None
         port = options.port
-    
+
+    try:
+        handle_options(options, port)
+    except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
+        if hostname is not None:
+            port = ensure_server(hostname)
+            handle_options(options, port)
+            
+
+def handle_options(options, port):
+
     if options.ping:
         print(ping_server(port))
     elif options.kill:
         kill_server(port)
     else:
-        try:
-            rec_data(options, port)
-        except (ConnectionRefusedError, ConnectionResetError):
-            port = ensure_server(hostname)
-            rec_data(options, port)
-                
+        rec_data(options, port)
+
+
 def ensure_server(hostname):
     oldport = read_portfile(hostname)
 
