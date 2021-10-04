@@ -10,6 +10,7 @@ import subprocess
 import smurf.search
 import logging
 import sys
+import time
 
 HOST = 'localhost'
 
@@ -258,6 +259,7 @@ def SSHTunnel(hostname, localport, remoteport):
     logging.info(f"Setting up ssh tunnel from local port '{localport}' to host '{hostname}' port '{remoteport}'")
     sshproc = subprocess.Popen(
         ["ssh", "-f", "-N", "-L", f"{localport}:localhost:{remoteport}", hostname], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    time.sleep(0.1)
     return sshproc
 
 
