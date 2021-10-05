@@ -53,6 +53,8 @@ def get_data_local(simid, query):
 def get_data_relay(simid, query):
     hostname = get_hostname(simid)
     port = get_hostport(hostname)
+    logging.info(
+        f"Using relay ('{hostname}' on port '{port}') to obtain data for simid '{simid}' with query '{query}'")
 
     try:
         data = get_simdata(simid, query, port)
