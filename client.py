@@ -35,7 +35,13 @@ def main():
         stdout_handler = logging.StreamHandler(sys.stdout)
         logging.getLogger().addHandler(stdout_handler)
 
-    if options.port > 0:
+    if options.host is not None:
+        hostname = options.host
+        port = get_hostport(hostname)
+        if port <= 0:
+            port = ensure_server(hostname)
+        options.port = port
+    elif options.port > 0:
         hostname = None
         port = options.port
     else:
@@ -284,7 +290,8 @@ def parse_args():
                         help="Output file to store the data in.")
     parser.add_argument("-k", "--kill", action="store_true",
                         help="Kill the server.")
-    parser.add_argument("--port", type=int, help="Server port", default=19998)
+    parser.add_argument("--port", type=int, help="Server port")
+    parser.add_argument("--host", type=str, help="Host running the server.")
     parser.add_argument("--ping", action="store_true", help="Ping the server.")
     parser.add_argument("-v", action="store_true", help="Enable verbose output.")
     options = parser.parse_args()
