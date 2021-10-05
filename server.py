@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from client import ensure_server, get_hostname, get_hostport, get_simdata
 import argparse
 import pickle
 import socketserver
@@ -10,6 +11,7 @@ import traceback
 import subprocess
 
 import logging
+import smurf.search
 
 
 def appdir():
@@ -24,7 +26,18 @@ logging.basicConfig(filename=os.path.join(appdir(), "server.log"),
                     format='%(asctime)s %(levelname)s %(message)s')
 
 
-def serialize_simdata_2d(simid, query):
+def get_simulation_data(simid, query):
+    searchres = smurf.search.search_local_cache(simid)
+    if len(searchres) > 0:
+        # have simulation locally
+        rv = get_data_local(simid, query)
+    else:
+        # try another server
+        rv = get_data_relay(simid, query)
+    return rv
+
+
+def get_data_local(simid, query):
     query_dict = query
     print(query_dict)
     d = simdata.SData(simid)
@@ -35,6 +48,29 @@ def serialize_simdata_2d(simid, query):
         "data": d.get(**query_dict)
     }
     return rv
+
+
+def get_data_relay(simid, query):
+    hostname = get_hostname(simid)
+    port = get_hostport(hostname)
+
+    try:
+        data = get_simdata(simid, query, port)
+    except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
+        if hostname is not None:
+            port = ensure_server(hostname)
+            data = get_simdata(simid, query, port)
+
+    ddict = {
+        "simid": simid,
+        "query": query,
+        "data": data,
+        "meta": {
+            "origin": hostname,
+            "port": port
+        }
+    }
+    return ddict
 
 
 class MyTCPHandler(socketserver.BaseRequestHandler):
@@ -73,7 +109,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             query = request["query"]
 
             logging.info("REQUEST: Loading simulation data...")
-            ddict = serialize_simdata_2d(simid, query)
+            ddict = get_simulation_data(simid, query)
             payload = pickle.dumps(ddict)
 
             # answer = request
@@ -84,7 +120,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         except Exception as e:
             logging.info(
                 f"REQUEST: Exception while loading data: {traceback.format_exc()}")
-            self.request.sendall(pickle.dumps("{}".format(traceback.format_exc())))
+            self.request.sendall(pickle.dumps(
+                "{}".format(traceback.format_exc())))
 
 
 def get_open_port():
@@ -177,7 +214,7 @@ def launch_server(host, port):
     subprocess.Popen(["python3", __file__, "--host", host, "--port", f"{port}", "--start"],
                      stdout=subprocess.PIPE,
                      stderr=subprocess.PIPE)
-    
+
     for _ in range(1000):
         time.sleep(0.001)
         port = read_port()
