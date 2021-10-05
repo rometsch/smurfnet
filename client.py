@@ -35,13 +35,14 @@ def main():
         stdout_handler = logging.StreamHandler(sys.stdout)
         logging.getLogger().addHandler(stdout_handler)
 
-    if options.simid is not None:
+    if options.port > 0:
+        hostname = None
+        port = options.port
+    else:
         hostname = get_hostname(options.simid)
         port = get_hostport(hostname)
         options.port = port
-    else:
-        hostname = None
-        port = options.port
+        
 
     try:
         handle_options(options, port)
@@ -62,6 +63,7 @@ def handle_options(options, port):
 
 
 def ensure_server(hostname):
+    logging.debug(f"Ensure a server runs on '{hostname}'")
     oldport = read_portfile(hostname)
 
     if oldport == 0 or not ping_server(int(oldport)):
@@ -99,7 +101,9 @@ def get_hostport(hostname):
 
 def start_server_remote(hostname):
     logging.info(f"Starting a server on host '{hostname}'")
-    cmd = ["ssh", hostname, "python3", "server.py"]
+    cmd = ["python3", "server.py"]
+    if hostname != "localhost":
+        cmd = ["ssh", hostname] + cmd
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     remoteport = res.stdout.decode().strip()
     if res.returncode != 0:
@@ -108,7 +112,7 @@ def start_server_remote(hostname):
         raise RuntimeError(f"Could not start server on '{hostname}'")
     logging.info(f"Server runs on port '{remoteport}' on host '{hostname}'")
     
-    if hostname == "localhost":
+    if hostname != "localhost":
         localport = get_open_port()
         SSHTunnel(hostname, localport, remoteport)
     else:
