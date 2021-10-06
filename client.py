@@ -167,7 +167,7 @@ def dict_filename(d):
 
 
 def send_request(payload, port):
-
+    logging.debug(f"Sending payload to host '{HOST}' on port '{port}'")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
         sock.connect((HOST, port))
@@ -185,7 +185,7 @@ def send_request(payload, port):
 
 
 def get_simdata(simid, query, port):
-
+    logging.debug(f"Obtaining data for simid '{simid}' on port '{port}'")
     request = {
         "simid": simid,
         "query": query
@@ -219,7 +219,7 @@ def rec_data(options, port):
 
     data = get_simdata(simid, query, port)
 
-    print(f"Obtained data for {simid} at {query}")
+    logging.info(f"Obtained data for {simid} at {query}")
 
     if options.outfile is not None:
         outfile = options.outfile
@@ -232,19 +232,22 @@ def rec_data(options, port):
 
 
 def kill_server(port):
+    host = HOST
+    logging.info(f"Sending kill command to server on '{host}' port '{port}'")
     send_request("kill_server".encode(), port)
 
 
 def ping_server(port):
-
+    host = HOST
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             # Connect to server and send data
-            logging.info(f"Pinging server on port {port}")
+            logging.info(f"Pinging server '{host}' on port {port}")
             sock.connect((HOST, port))
             sock.sendall("ping".encode())
 
-            received = sock.recv(1024)
+            received = sock.recv(1028)
+            logging.debug("Received ping")
 
         rv = received.decode() == "ping"
     except (ConnectionRefusedError, ConnectionResetError) as e:
