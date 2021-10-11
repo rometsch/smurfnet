@@ -12,7 +12,7 @@ import subprocess
 import logging
 import smurf.search
 
-from simdata_server.client import ensure_server, get_hostname, get_hostport, get_simdata
+from simdata_net.client import ensure_server, get_hostname, get_hostport, get_simdata
 
 def appdir():
     appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
@@ -212,7 +212,7 @@ def launch_server(host, port):
         port = get_open_port()
 
     write_port(-1)
-    cmd = ["simdata-server", "server", "--host", host, "--port", f"{port}", "--start"]
+    cmd = ["simdata-net", "server", "--host", host, "--port", f"{port}", "--start"]
 
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

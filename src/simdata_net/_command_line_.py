@@ -4,9 +4,9 @@ def main():
     options = parse_cli()
 
     if options.role == "server":
-        from simdata_server.server import server as func
+        from simdata_net.server import server as func
     else:
-        from simdata_server.client import client as func
+        from simdata_net.client import client as func
 
     func(options)
 

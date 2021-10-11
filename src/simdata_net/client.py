@@ -3,7 +3,6 @@ import string
 import unicodedata
 import socket
 import pickle
-import argparse
 import os
 import json
 import subprocess
@@ -106,7 +105,7 @@ def get_hostport(hostname):
 
 def start_server_remote(hostname):
     logging.info(f"Starting a server on host '{hostname}'")
-    cmd = ["simdata-server", "server"]
+    cmd = ["simdata-net", "server"]
     if hostname != "localhost":
         cmd = ["ssh", hostname] + cmd
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
