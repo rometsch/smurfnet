@@ -212,7 +212,8 @@ def launch_server(host, port):
         port = get_open_port()
 
     write_port(-1)
-    cmd = ["simdata-net", "server", "--host", host, "--port", f"{port}", "--start"]
+    exec_path = os.path.expanduser("~/.local/bin/simdata-net")
+    cmd = [exec_path, "server", "--host", host, "--port", f"{port}", "--start"]
 
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

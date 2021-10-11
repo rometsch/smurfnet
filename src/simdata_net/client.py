@@ -121,7 +121,8 @@ def get_hostport(hostname):
 
 def start_server_remote(hostname):
     logging.info(f"Starting a server on host '{hostname}'")
-    cmd = ["simdata-net", "server"]
+
+    cmd = ["$HOME/.local/bin/simdata-net", "server"]
     if hostname != "localhost":
         cmd = ["ssh", hostname] + cmd
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
