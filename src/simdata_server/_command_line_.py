@@ -3,9 +3,6 @@ import argparse
 def main():
     options = parse_cli()
 
-    print(options)
-    exit()
-
     if options.function == "server":
         from simdata_server.server import server as func
     else:
