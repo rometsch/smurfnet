@@ -28,9 +28,8 @@ logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
                     level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(message)s')
 
-def main():
-    
-    options = parse_args()
+def client(options):
+
     if options.v:
         stdout_handler = logging.StreamHandler(sys.stdout)
         logging.getLogger().addHandler(stdout_handler)
@@ -56,7 +55,6 @@ def main():
         if hostname is not None:
             port = ensure_server(hostname)
             handle_options(options, port)
-
 
 def handle_options(options, port):
 
@@ -107,7 +105,7 @@ def get_hostport(hostname):
 
 def start_server_remote(hostname):
     logging.info(f"Starting a server on host '{hostname}'")
-    cmd = ["python3", "server.py"]
+    cmd = ["simdata-server", "server"]
     if hostname != "localhost":
         cmd = ["ssh", hostname] + cmd
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -275,31 +273,3 @@ def SSHTunnel(hostname, localport, remoteport):
         ["ssh", "-f", "-N", "-L", f"{localport}:localhost:{remoteport}", hostname], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     time.sleep(0.1)
     return sshproc
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--simid", type=str,
-                        help="The id identifying the simulation.")
-    parser.add_argument("--var", type=str,
-                        help="Variable to get.")
-    parser.add_argument("--N", type=int,
-                        help="Output number.")
-    parser.add_argument("--dim", type=int,
-                        help="Data dimension.")
-    parser.add_argument("--planet", type=int,
-                        help="Number of planet.")
-    parser.add_argument("-o", "--outfile",
-                        help="Output file to store the data in.")
-    parser.add_argument("-k", "--kill", action="store_true",
-                        help="Kill the server.")
-    parser.add_argument("--port", type=int, help="Server port")
-    parser.add_argument("--host", type=str, help="Host running the server.")
-    parser.add_argument("--ping", action="store_true", help="Ping the server.")
-    parser.add_argument("-v", action="store_true", help="Enable verbose output.")
-    options = parser.parse_args()
-    return options
-
-
-if __name__ == "__main__":
-    main()

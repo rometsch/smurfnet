@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from client import ensure_server, get_hostname, get_hostport, get_simdata
 import argparse
 import pickle
 import socketserver
@@ -13,6 +12,7 @@ import subprocess
 import logging
 import smurf.search
 
+from simdata_server.client import ensure_server, get_hostname, get_hostport, get_simdata
 
 def appdir():
     appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
@@ -154,7 +154,7 @@ def read_port():
     try:
         with open(filename, "r") as infile:
             rv = int(infile.read().strip())
-    except FileNotFoundError:
+    except (FileNotFoundError,ValueError):
         rv = -1
     return rv
 
@@ -213,9 +213,9 @@ def launch_server(host, port):
         port = get_open_port()
 
     write_port(-1)
-    subprocess.Popen(["python3", __file__, "--host", host, "--port", f"{port}", "--start"],
-                     stdout=subprocess.PIPE,
-                     stderr=subprocess.PIPE)
+    cmd = ["python3", __file__, "--host", host, "--port", f"{port}", "--start"]
+    print(cmd)
+    subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     for _ in range(1000):
         time.sleep(0.001)
@@ -225,15 +225,7 @@ def launch_server(host, port):
             break
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--host", type=str, default="localhost",
-                        help="Server address")
-    parser.add_argument("--port", type=int, default=-1,
-                        help="Server port")
-    parser.add_argument("--start", action="store_true")
-    parser.add_argument("--restart", action="store_true")
-    options = parser.parse_args()
+def server(options):
 
     if options.start:
         # definitely start a server
@@ -262,3 +254,4 @@ if __name__ == "__main__":
             # otherwise launch a new server with this port
             logging.info("Launching a new server.")
             launch_server(options.host, options.port)
+
