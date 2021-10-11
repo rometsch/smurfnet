@@ -66,7 +66,7 @@ def handle_options(options, port):
         
 def simdata_request(simid, query, hostname=None):
     if hostname is None:
-    hostname = get_hostname(simid)
+        hostname = get_hostname(simid)
     port = get_hostport(hostname)
     if port <= 0:
         port = ensure_server(hostname)
@@ -188,6 +188,8 @@ def send_request(payload, port):
         sock.connect((HOST, port))
         sock.sendall(payload)
 
+        logging.debug(f"Receiving payload from host '{HOST}' on port '{port}'...")
+
         received = sock.recv(4096)
 
         for n in range(1000):
@@ -195,6 +197,9 @@ def send_request(payload, port):
             if rec == b'':
                 break
             received += rec
+        
+        logging.debug(f"Finished receiving payload from host '{HOST}' on port '{port}'.")
+
 
     return received
 

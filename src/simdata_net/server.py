@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import argparse
 import pickle
 import socketserver
 import simdata
@@ -52,7 +51,7 @@ def get_data_local(simid, query):
 def get_data_relay(simid, query):
     hostname = get_hostname(simid)
     port = get_hostport(hostname)
-    logging.info(
+    logging.debug(
         f"Using relay ('{hostname}' on port '{port}') to obtain data for simid '{simid}' with query '{query}'")
 
     try:
@@ -103,21 +102,24 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 pass
 
             request = pickle.loads(self.data)
-            logging.info("REQUEST: {} wrote:".format(self.client_address[0]))
+            logging.info("REQUEST: {} wrote:".format(self.client_address))
             logging.info(f"REQUEST: {request}")
 
             simid = request["simid"]
             query = request["query"]
 
-            logging.info("REQUEST: Loading simulation data...")
+            logging.debug("REQUEST: Loading simulation data...")
             ddict = get_simulation_data(simid, query)
             payload = pickle.dumps(ddict)
 
             # answer = request
-            logging.info(
-                f"REQUEST: Sending simulation data for {simid} with query: {query}")
+            logging.debug(
+                f"REQUEST: Sending simulation data for {simid} with query: {query}.")
 
             self.request.send(payload)
+
+            logging.debug(
+                f"REQUEST: Finished sending simulation data for {simid}.")
         except Exception as e:
             logging.info(
                 f"REQUEST: Exception while loading data: {traceback.format_exc()}")
