@@ -86,9 +86,10 @@ def read_portfile(hostname):
     portfile = os.path.join(appdir(), f"{hostname}.port")
     try:
         with open(portfile, "r") as infile:
-            rv = infile.read().strip()
-    except FileNotFoundError:
+            rv = int(infile.read().strip())
+    except (FileNotFoundError,ValueError):
         rv = 0
+    logging.debug(f"Found port '{rv}' for server on '{hostname}'")
     return rv
 
 
