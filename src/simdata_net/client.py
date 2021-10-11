@@ -64,8 +64,8 @@ def handle_options(options, port):
     else:
         save_data(options, port)
         
-def simdata_request(simid, **kwargs):
-    query = kwargs
+def simdata_request(simid, query, hostname=None):
+    if hostname is None:
     hostname = get_hostname(simid)
     port = get_hostport(hostname)
     if port <= 0:
