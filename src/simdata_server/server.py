@@ -39,7 +39,6 @@ def get_simulation_data(simid, query):
 
 def get_data_local(simid, query):
     query_dict = query
-    print(query_dict)
     d = simdata.SData(simid)
 
     rv = {
@@ -213,8 +212,8 @@ def launch_server(host, port):
         port = get_open_port()
 
     write_port(-1)
-    cmd = ["python3", __file__, "--host", host, "--port", f"{port}", "--start"]
-    print(cmd)
+    cmd = ["simdata-server", "server", "--host", host, "--port", f"{port}", "--start"]
+
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     for _ in range(1000):
