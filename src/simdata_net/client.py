@@ -62,7 +62,23 @@ def handle_options(options, port):
     elif options.kill:
         kill_server(port)
     else:
-        rec_data(options, port)
+        save_data(options, port)
+        
+def simdata_request(simid, **kwargs):
+    query = kwargs
+    hostname = get_hostname(simid)
+    port = get_hostport(hostname)
+    if port <= 0:
+        port = ensure_server(hostname)
+
+    try:
+        rv = receive_data(simid, query, port)
+    except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
+        if hostname is not None:
+            port = ensure_server(hostname)
+            rv = receive_data(simid, query, port)
+
+    return rv
 
 
 def ensure_server(hostname):
@@ -182,7 +198,7 @@ def send_request(payload, port):
     return received
 
 
-def get_simdata(simid, query, port):
+def receive_data(simid, query, port):
     logging.debug(f"Obtaining data for simid '{simid}' on port '{port}'")
     request = {
         "simid": simid,
@@ -205,7 +221,7 @@ def get_simdata(simid, query, port):
     return rv
 
 
-def rec_data(options, port):
+def save_data(options, port):
     query = {
         "var": options.var,
         "N": options.N,
@@ -215,7 +231,7 @@ def rec_data(options, port):
 
     simid = options.simid
 
-    data = get_simdata(simid, query, port)
+    data = receive_data(simid, query, port)
 
     logging.info(f"Obtained data for {simid} at {query}")
 

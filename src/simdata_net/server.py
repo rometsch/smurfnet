@@ -12,7 +12,7 @@ import subprocess
 import logging
 import smurf.search
 
-from simdata_net.client import ensure_server, get_hostname, get_hostport, get_simdata
+from simdata_net.client import ensure_server, get_hostname, get_hostport, receive_data
 
 def appdir():
     appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
@@ -56,11 +56,11 @@ def get_data_relay(simid, query):
         f"Using relay ('{hostname}' on port '{port}') to obtain data for simid '{simid}' with query '{query}'")
 
     try:
-        data = get_simdata(simid, query, port)
+        data = receive_data(simid, query, port)
     except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
         if hostname is not None:
             port = ensure_server(hostname)
-            data = get_simdata(simid, query, port)
+            data = receive_data(simid, query, port)
 
     ddict = {
         "simid": simid,

@@ -9,6 +9,6 @@ setup(  name="simdata-net"
         ,packages=find_namespace_packages(where="src")
         ,install_requires=["simdata"]
         ,entry_points = {
-                'console_scripts': ['simdata-net=simdata_server._command_line_:main'],
+                'console_scripts': ['simdata-net=simdata_net._command_line_:main'],
         }
         )
