@@ -6,6 +6,7 @@ import simdata
 import os
 import time
 import traceback
+import urllib
 
 import subprocess
 
@@ -13,6 +14,7 @@ import logging
 import smurf.search
 
 from simdata_net.client import ensure_server, get_hostname, get_hostport, receive_data
+
 
 def appdir():
     appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
@@ -26,19 +28,33 @@ logging.basicConfig(filename=os.path.join(appdir(), "server.log"),
                     format='%(asctime)s %(levelname)s %(message)s')
 
 
-def get_simulation_data(simid, query):
+def parse_data_url(url):
+    d = urllib.parse.parse_qs(url)
+    d = {k: v[0] for k, v in d.items()}
+    simid = d["simid"]
+    del d["simid"]
+    query = d
+    return simid, query
+
+
+def get_simulation_data(url):
+    simid, query = parse_data_url(url)
+
     searchres = smurf.search.search_local_cache(simid)
     if len(searchres) > 0:
         # have simulation locally
         rv = get_data_local(simid, query)
     else:
         # try another server
-        rv = get_data_relay(simid, query)
+        rv = get_data_relay(simid, url)
     return rv
 
 
 def get_data_local(simid, query):
-    query_dict = query
+    query_dict = query.copy()
+    for key, val in query_dict.items():
+        if val == "None":
+            query_dict[key] = None
     d = simdata.SData(simid)
 
     rv = {
@@ -49,22 +65,22 @@ def get_data_local(simid, query):
     return rv
 
 
-def get_data_relay(simid, query):
+def get_data_relay(simid, url):
     hostname = get_hostname(simid)
     port = get_hostport(hostname)
     logging.info(
-        f"Using relay ('{hostname}' on port '{port}') to obtain data for simid '{simid}' with query '{query}'")
+        f"Using relay ('{hostname}' on port '{port}') to obtain data for simid '{simid}' with query '{url}'")
 
     try:
-        data = receive_data(simid, query, port)
+        data = receive_data(url, port)
     except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
         if hostname is not None:
             port = ensure_server(hostname)
-            data = receive_data(simid, query, port)
+            data = receive_data(url, port)
 
     ddict = {
         "simid": simid,
-        "query": query,
+        "url": url,
         "data": data,
         "meta": {
             "origin": hostname,
@@ -90,7 +106,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.data = self.request.recv(4096)
 
             try:
-                plain_text = self.data.decode()
+                plain_text = self.data.decode("utf-8")
                 if plain_text == "kill_server":
                     logging.info("Shutting down server...")
                     self.server.shutdown()
@@ -102,21 +118,16 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             except (AttributeError, UnicodeDecodeError):
                 pass
 
-            request = pickle.loads(self.data)
-            logging.info("REQUEST: {} wrote:".format(self.client_address[0]))
-            logging.info(f"REQUEST: {request}")
+            url = plain_text
 
-            simid = request["simid"]
-            query = request["query"]
+            logging.info("REQUEST: {} wrote:".format(self.client_address[0]))
+            logging.info(f"REQUEST: {url}")
 
             logging.info("REQUEST: Loading simulation data...")
-            ddict = get_simulation_data(simid, query)
+            ddict = get_simulation_data(url)
             payload = pickle.dumps(ddict)
 
-            # answer = request
-            logging.info(
-                f"REQUEST: Sending simulation data for {simid} with query: {query}")
-
+            logging.info(f"REQUEST: Sending simulation data")
             self.request.send(payload)
         except Exception as e:
             logging.info(
@@ -153,7 +164,7 @@ def read_port():
     try:
         with open(filename, "r") as infile:
             rv = int(infile.read().strip())
-    except (FileNotFoundError,ValueError):
+    except (FileNotFoundError, ValueError):
         rv = -1
     return rv
 
@@ -212,7 +223,8 @@ def launch_server(host, port):
         port = get_open_port()
 
     write_port(-1)
-    cmd = ["simdata-net", "server", "--host", host, "--port", f"{port}", "--start"]
+    cmd = [os.path.expanduser("~/.local/bin/simdata-net"),
+           "server", "--host", host, "--port", f"{port}", "--start"]
 
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -253,4 +265,3 @@ def server(options):
             # otherwise launch a new server with this port
             logging.info("Launching a new server.")
             launch_server(options.host, options.port)
-

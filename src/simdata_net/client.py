@@ -10,6 +10,7 @@ import smurf.search
 import logging
 import sys
 import time
+import urllib
 
 HOST = 'localhost'
 
@@ -22,10 +23,12 @@ def appdir():
     os.makedirs(appdir, exist_ok=True)
     return appdir
 
+
 logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
                     filemode='a',
                     level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(message)s')
+
 
 def client(options):
 
@@ -46,7 +49,6 @@ def client(options):
         hostname = get_hostname(options.simid)
         port = get_hostport(hostname)
         options.port = port
-        
 
     try:
         handle_options(options, port)
@@ -54,6 +56,7 @@ def client(options):
         if hostname is not None:
             port = ensure_server(hostname)
             handle_options(options, port)
+
 
 def handle_options(options, port):
 
@@ -63,20 +66,22 @@ def handle_options(options, port):
         kill_server(port)
     else:
         save_data(options, port)
-        
-def simdata_request(simid, **kwargs):
-    query = kwargs
+
+
+def simdata_request(url, **kwargs):
+    simid = urllib.parse.parse_qs(url)["simid"][0]
+    logging.debug(f"Received simdata request '{url}'")
     hostname = get_hostname(simid)
     port = get_hostport(hostname)
     if port <= 0:
         port = ensure_server(hostname)
 
     try:
-        rv = receive_data(simid, query, port)
+        rv = receive_data(url, port)
     except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
         if hostname is not None:
             port = ensure_server(hostname)
-            rv = receive_data(simid, query, port)
+            rv = receive_data(url, port)
 
     return rv
 
@@ -92,17 +97,19 @@ def ensure_server(hostname):
         port = oldport
     return int(port)
 
+
 def get_hostname(simid):
-    logging.info(f"Looking up hostname for simid '{simid}'")    
+    logging.info(f"Looking up hostname for simid '{simid}'")
     siminfo = smurf.search.search(simid)[0]
     return siminfo["host"]
+
 
 def read_portfile(hostname):
     portfile = os.path.join(appdir(), f"{hostname}.port")
     try:
         with open(portfile, "r") as infile:
             rv = int(infile.read().strip())
-    except (FileNotFoundError,ValueError):
+    except (FileNotFoundError, ValueError):
         rv = 0
     logging.debug(f"Found port '{rv}' for server on '{hostname}'")
     return rv
@@ -119,19 +126,21 @@ def get_hostport(hostname):
     oldport = read_portfile(hostname)
     return int(oldport)
 
+
 def start_server_remote(hostname):
     logging.info(f"Starting a server on host '{hostname}'")
-    cmd = ["simdata-net", "server"]
+    cmd = [".local/bin/simdata-net", "server"]
     if hostname != "localhost":
         cmd = ["ssh", hostname] + cmd
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     remoteport = res.stdout.decode().strip()
     if res.returncode != 0:
-        logging.error(f"Received non-zero return code from server start on '{hostname}'")
+        logging.error(
+            f"Received non-zero return code from server start on '{hostname}'")
         logging.error(res.stderr.decode().strip())
         raise RuntimeError(f"Could not start server on '{hostname}'")
     logging.info(f"Server runs on port '{remoteport}' on host '{hostname}'")
-    
+
     if hostname != "localhost":
         localport = get_open_port()
         SSHTunnel(hostname, localport, remoteport)
@@ -198,17 +207,10 @@ def send_request(payload, port):
     return received
 
 
-def receive_data(simid, query, port):
-    logging.debug(f"Obtaining data for simid '{simid}' on port '{port}'")
-    request = {
-        "simid": simid,
-        "query": query
-    }
-    variable = request
-    # Pickle the object and send it to the server
-    data_string = pickle.dumps(variable)
+def receive_data(url, port):
+    logging.debug(f"Obtaining '{url}' on port '{port}'")
 
-    received = send_request(data_string, port)
+    received = send_request(url.encode("utf-8"), port)
 
     answer = pickle.loads(received)
 
@@ -267,7 +269,7 @@ def ping_server(port):
     except (ConnectionRefusedError, ConnectionResetError) as e:
         logging.warning(f"Received '{e}' from pinning port {port}")
         rv = False
-        
+
     logging.info(f"Ping successful? {rv}")
 
     return rv
@@ -284,7 +286,8 @@ def get_open_port():
 
 
 def SSHTunnel(hostname, localport, remoteport):
-    logging.info(f"Setting up ssh tunnel from local port '{localport}' to host '{hostname}' port '{remoteport}'")
+    logging.info(
+        f"Setting up ssh tunnel from local port '{localport}' to host '{hostname}' port '{remoteport}'")
     sshproc = subprocess.Popen(
         ["ssh", "-f", "-N", "-L", f"{localport}:localhost:{remoteport}", hostname], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     time.sleep(0.1)
