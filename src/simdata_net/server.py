@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import argparse
 import pickle
 import socketserver
 import simdata
@@ -128,7 +127,11 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             payload = pickle.dumps(ddict)
 
             logging.info(f"REQUEST: Sending simulation data")
+
             self.request.send(payload)
+
+            logging.debug(
+                f"REQUEST: Finished sending simulation data for {simid}.")
         except Exception as e:
             logging.info(
                 f"REQUEST: Exception while loading data: {traceback.format_exc()}")
