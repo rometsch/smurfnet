@@ -68,10 +68,12 @@ def handle_options(options, port):
         save_data(options, port)
 
 
-def simdata_request(url, **kwargs):
+def simdata_request(url, hostname=None):
     simid = urllib.parse.parse_qs(url)["simid"][0]
     logging.debug(f"Received simdata request '{url}'")
-    hostname = get_hostname(simid)
+    
+    if hostname is None:
+        hostname = get_hostname(simid)
 
     port = get_hostport(hostname)
     if port <= 0:
