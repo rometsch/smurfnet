@@ -10,5 +10,6 @@ setup(  name="simdata-net"
         ,install_requires=["simdata"]
         ,entry_points = {
                 'console_scripts': ['simdata-net=simdata_net._command_line_:main'],
-        }
+        },
+        install_requires=["diskcache"]
         )
