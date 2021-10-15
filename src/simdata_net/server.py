@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
+import logging
+import os
 import pickle
 import socketserver
-import simdata
-import os
+import subprocess
 import time
 import traceback
 import urllib
 
-import subprocess
-
-import logging
+import diskcache
+import simdata
 import smurf.search
 
-from simdata_net.client import ensure_server, get_hostname, get_hostport, receive_data
+from simdata_net.client import (ensure_server, get_hostname, get_hostport,
+                                receive_data)
 
+try:
+    import simdata.config
+    sdconf = simdata.config.Config()
+    cachedir = sdconf["cachedir"]
+    cache = diskcache.Cache(directory=cachedir)
+except (KeyError, ImportError):
+    cache = None
 
 def appdir():
     appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
@@ -71,11 +79,14 @@ def get_data_relay(simid, url):
         f"Using relay ('{hostname}' on port '{port}') to obtain data for simid '{simid}' with query '{url}'")
 
     try:
-        data = receive_data(url, port)
-    except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
-        if hostname is not None:
-            port = ensure_server(hostname)
+        data = cache[url]
+    except (TypeError, KeyError):
+        try:
             data = receive_data(url, port)
+        except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
+            if hostname is not None:
+                port = ensure_server(hostname)
+                data = receive_data(url, port)
 
     ddict = {
         "simid": simid,
@@ -131,7 +142,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.request.send(payload)
 
             logging.debug(
-                f"REQUEST: Finished sending simulation data for {simid}.")
+                f"REQUEST: Finished sending simulation data.")
         except Exception as e:
             logging.info(
                 f"REQUEST: Exception while loading data: {traceback.format_exc()}")
