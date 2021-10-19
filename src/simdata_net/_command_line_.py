@@ -30,7 +30,7 @@ def parse_cli():
     server_parser.set_defaults(role="server")
 
 
-
+    client_parser.add_argument("--url", type=str, help="Get the url.")
     client_parser.add_argument("--simid", type=str,
                         help="The id identifying the simulation.")
     client_parser.add_argument("--var", type=str,
@@ -45,6 +45,8 @@ def parse_cli():
                         help="Output file to store the data in.")
     client_parser.add_argument("-k", "--kill", action="store_true",
                         help="Kill the server.")
+    client_parser.add_argument("-r", "--restart", action="store_true",
+                        help="Restart the server.")
     client_parser.add_argument("--ping", action="store_true", help="Ping the server.")
     client_parser.set_defaults(role="client")
     

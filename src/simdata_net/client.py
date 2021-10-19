@@ -46,7 +46,8 @@ def client(options):
         hostname = None
         port = options.port
     else:
-        hostname = get_hostname(options.simid)
+        cmp = urllib.parse.urlparse(options.url)
+        hostname = cmp.hostname
         port = get_hostport(hostname)
         options.port = port
 
@@ -60,20 +61,21 @@ def client(options):
 
 def handle_options(options, port):
 
-    if options.ping:
+    if options.url:
+        print(make_request(options.url))
+    elif options.ping:
         print(ping_server(port))
     elif options.kill:
         kill_server(port)
-    else:
-        save_data(options, port)
+    elif options.restart:
+        restart_server(port)
 
 
-def simdata_request(url, hostname=None):
-    simid = urllib.parse.parse_qs(url)["simid"][0]
-    logging.debug(f"Received simdata request '{url}'")
+def make_request(url):
+    req = urllib.parse.urlparse(url)
+    hostname = req.hostname
     
-    if hostname is None:
-        hostname = get_hostname(simid)
+    logging.debug(f"Received request '{url}'")
 
     port = get_hostport(hostname)
     if port <= 0:
@@ -108,6 +110,8 @@ def get_hostname(simid):
 
 
 def read_portfile(hostname):
+    if hostname == "127.0.0.1":
+        hostname = "localhost"
     portfile = os.path.join(appdir(), f"{hostname}.port")
     try:
         with open(portfile, "r") as infile:
@@ -220,45 +224,28 @@ def receive_data(url, port):
 
     received = send_request(url.encode("utf-8"), port)
 
-    answer = pickle.loads(received)
+    try:
+        rv = received.decode()
+    except UnicodeDecodeError:
+        answer = pickle.loads(received)
 
-    if not isinstance(answer, dict):
-        print(answer)
-        raise RuntimeError(answer)
+        if not isinstance(answer, dict):
+            print(answer)
+            raise RuntimeError(answer)
 
-    rv = answer["data"]
+        rv = answer["data"]
 
     return rv
 
 
-def save_data(options, port):
-    query = {
-        "var": options.var,
-        "N": options.N,
-        "dim": options.dim,
-        "planet": options.planet
-    }
-
-    simid = options.simid
-
-    data = receive_data(simid, query, port)
-
-    logging.info(f"Obtained data for {simid} at {query}")
-
-    if options.outfile is not None:
-        outfile = options.outfile
-    else:
-        outfile = f"data/{simid}/{dict_filename(query)}.pickle"
-    os.makedirs(os.path.dirname(outfile), exist_ok=True)
-
-    with open(outfile, "wb") as of:
-        pickle.dump(data, of)
-
-
 def kill_server(port):
-    host = HOST
-    logging.info(f"Sending kill command to server on '{host}' port '{port}'")
-    send_request("kill_server".encode(), port)
+    logging.info(f"Sending kill command to server on port '{port}'")
+    send_request("simnet://localhost/kill".encode(), port)
+
+
+def restart_server(port):
+    logging.info(f"Sending restart command to server on port '{port}'")
+    send_request("simnet://localhost/restart".encode(), port)
 
 
 def ping_server(port):
@@ -268,7 +255,7 @@ def ping_server(port):
             # Connect to server and send data
             logging.info(f"Pinging server '{host}' on port {port}")
             sock.connect((HOST, port))
-            sock.sendall("ping".encode())
+            sock.sendall("simnet://localhost/ping".encode())
 
             received = sock.recv(1028)
             logging.debug("Received ping")

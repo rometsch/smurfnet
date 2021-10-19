@@ -7,6 +7,7 @@ import subprocess
 import time
 import traceback
 import urllib
+import json
 
 import diskcache
 import simdata
@@ -35,8 +36,8 @@ logging.basicConfig(filename=os.path.join(appdir(), "server.log"),
                     format='%(asctime)s %(levelname)s %(message)s')
 
 
-def parse_data_url(url):
-    d = urllib.parse.parse_qs(url)
+def parse_data_url(query_str):
+    d = urllib.parse.parse_qs(query_str)
     d = {k: v[0] for k, v in d.items()}
     simid = d["simid"]
     del d["simid"]
@@ -45,29 +46,45 @@ def parse_data_url(url):
 
 
 def get_simulation_data(url):
-    simid, query = parse_data_url(url)
+    req = urllib.parse.urlparse(url)
+    simid, query = parse_data_url(req.query)
 
     searchres = smurf.search.search_local_cache(simid)
     if len(searchres) > 0:
         # have simulation locally
-        rv = get_data_local(simid, query)
+        rv = get_data_local(url)
     else:
         # try another server
         rv = get_data_relay(simid, url)
+
     return rv
 
 
-def get_data_local(simid, query):
-    query_dict = query.copy()
-    for key, val in query_dict.items():
-        if val == "None":
-            query_dict[key] = None
+def get_data_local(url):
+    logging.debug(f"Obtaining local simdata with url '{url}'")
+    req = urllib.parse.urlparse(url)
+
+    simid, query = parse_data_url(req.query)
+    
+    logging.debug(f"Handling simid='{simid}' with action '{req.path}' and query '{query}'")
+    
     d = simdata.SData(simid)
+
+    if req.path.startswith("/get"):
+        query_dict = query.copy()
+        for key, val in query_dict.items():
+            if val == "None":
+                query_dict[key] = None
+        data = d.get(**query_dict)
+    elif req.path.startswith("/avail"):
+        data = d.avail()
+    else:
+        data = url
 
     rv = {
         "simid": simid,
-        "query": query,
-        "data": d.get(**query_dict)
+        "url": url,
+        "data": data
     }
     return rv
 
@@ -113,42 +130,63 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
 
         # self.request is the TCP socket connected to the client
         try:
-            self.data = self.request.recv(4096)
-
-            try:
-                plain_text = self.data.decode("utf-8")
-                if plain_text == "kill_server":
-                    logging.info("Shutting down server...")
-                    self.server.shutdown()
-                    return
-                elif plain_text == "ping":
-                    logging.info("REQUEST: received ping, pinning back...")
-                    self.request.send("ping".encode())
-                    return
-            except (AttributeError, UnicodeDecodeError):
-                pass
-
-            url = plain_text
+            url = self.request.recv(4096).decode("utf-8")
+            self.url_cmps = urllib.parse.urlparse(url)
+            scheme = self.url_cmps.scheme
 
             logging.info("REQUEST: {} wrote:".format(self.client_address[0]))
             logging.info(f"REQUEST: {url}")
+            logging.debug(f"Url parsed to {self.url_cmps}")
+            
+            if scheme == "simnet":
+                self.handle_simnet()
+            
+            elif scheme == "simdata":
+                answer = handle_simdata(url)
+                logging.debug(f"REQUEST: Sending simulation data")
+                self.request.send(answer)
+                logging.debug(f"REQUEST: Done sending simulation data")  
+            elif scheme == "smurf":
+                answer = handle_smurf(url)
+                self.request.send(answer)
 
-            logging.info("REQUEST: Loading simulation data...")
-            ddict = get_simulation_data(url)
-            payload = pickle.dumps(ddict)
-
-            logging.info(f"REQUEST: Sending simulation data")
-
-            self.request.send(payload)
-
-            logging.debug(
-                f"REQUEST: Finished sending simulation data.")
         except Exception as e:
             logging.info(
-                f"REQUEST: Exception while loading data: {traceback.format_exc()}")
+                f"REQUEST: Exception while handling request: {traceback.format_exc()}")
             self.request.sendall(pickle.dumps(
                 "{}".format(traceback.format_exc())))
 
+    def handle_simnet(self):
+        path = self.url_cmps.path
+        if path.startswith("/kill"):
+            logging.info("Shutting down server...")
+            self.server.shutdown()
+            return
+        elif path.startswith("/ping"):
+            logging.info("REQUEST: received ping, pinning back...")
+            self.request.send("ping".encode())
+            return
+        elif path.startswith("/restart"):
+            restart_wrapped()
+    
+def handle_simdata(url):
+    logging.info("REQUEST: Loading simulation data...")
+    ddict = get_simulation_data(url)
+    payload = pickle.dumps(ddict)
+    return payload
+
+
+def handle_smurf(url):
+    cmps = urllib.parse.urlparse(url)
+    path = cmps.path
+    
+    if path.startswith("/search"):
+        d = urllib.parse.parse_qs(cmps.query)
+        d = {k: v[0] if len(v) == 1 else v for k, v in d.items()}
+        rv = smurf.search.search(d["pattern"])
+    return json.dumps(rv).encode("utf-8")
+        
+        
 
 def get_open_port():
     import socket
@@ -249,6 +287,24 @@ def launch_server(host, port):
             print(port)
             break
 
+def restart_wrapped():
+    cmd = [os.path.expanduser("~/.local/bin/simdata-net"),
+           "server", "--restart"]
+
+    subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+def restart(host, port):
+    logging.info("Restarting server")
+    if check_running():
+        pid = read_pid()
+        logging.info(f"Killing old server with pid {pid}")
+        os.kill(pid, 15)
+    if port == -1:
+        # reuse old port if none is provided
+        port = read_port()
+    else:
+        port = port
+    launch_server(host, port)
 
 def server(options):
 
@@ -257,17 +313,7 @@ def server(options):
         start_server(options.host, options.port)
 
     elif options.restart:
-        logging.info("Restarting server")
-        if check_running():
-            pid = read_pid()
-            logging.info(f"Killing old server with pid {pid}")
-            os.kill(pid, 15)
-        if options.port == -1:
-            # reuse old port if none is provided
-            port = read_port()
-        else:
-            port = options.port
-        launch_server(options.host, port)
+        restart(options.host, options.port)
 
     else:
         if (check_running() and read_port() > 0) and (options.port == -1 or options.port == read_port()):
