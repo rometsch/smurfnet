@@ -2,7 +2,7 @@
 from setuptools import setup, find_namespace_packages
 
 setup(name="simdata-net"
-        ,version="0.5"
+        ,version="0.6"
         ,description="Client server model for using simdata on a network."
         ,author="Thomas Rometsch"
         ,package_dir={'': 'src'}
