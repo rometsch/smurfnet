@@ -30,11 +30,12 @@ def appdir():
     return appdir
 
 
-logging.basicConfig(filename=os.path.join(appdir(), "server.log"),
+logging.basicConfig(filename=os.path.join(appdir(), "simdata.log"),
                     filemode='a',
                     level=logging.DEBUG,
-                    format='%(asctime)s %(levelname)s %(message)s')
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+logger = logging.getLogger(__name__)
 
 def parse_data_url(query_str):
     d = urllib.parse.parse_qs(query_str)
@@ -61,13 +62,14 @@ def get_simulation_data(url):
 
 
 def get_data_local(url):
-    logging.debug(f"Obtaining local simdata with url '{url}'")
+    logger.debug(f"Obtaining local simdata with url '{url}'")
     req = urllib.parse.urlparse(url)
 
     simid, query = parse_data_url(req.query)
-    
-    logging.debug(f"Handling simid='{simid}' with action '{req.path}' and query '{query}'")
-    
+
+    logger.debug(
+        f"Handling simid='{simid}' with action '{req.path}' and query '{query}'")
+
     d = simdata.SData(simid)
 
     if req.path.startswith("/get"):
@@ -92,7 +94,7 @@ def get_data_local(url):
 def get_data_relay(simid, url):
     hostname = get_hostname(simid)
     port = get_hostport(hostname)
-    logging.info(
+    logger.info(
         f"Using relay ('{hostname}' on port '{port}') to obtain data for simid '{simid}' with query '{url}'")
 
     try:
@@ -134,24 +136,24 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             self.url_cmps = urllib.parse.urlparse(url)
             scheme = self.url_cmps.scheme
 
-            logging.info("REQUEST: {} wrote:".format(self.client_address[0]))
-            logging.info(f"REQUEST: {url}")
-            logging.debug(f"Url parsed to {self.url_cmps}")
-            
+            logger.info("REQUEST: {} wrote:".format(self.client_address[0]))
+            logger.info(f"REQUEST: {url}")
+            logger.debug(f"Url parsed to {self.url_cmps}")
+
             if scheme == "simnet":
                 self.handle_simnet()
-            
+
             elif scheme == "simdata":
                 answer = handle_simdata(url)
-                logging.debug(f"REQUEST: Sending simulation data")
+                logger.debug(f"REQUEST: Sending simulation data")
                 self.request.send(answer)
-                logging.debug(f"REQUEST: Done sending simulation data")  
+                logger.debug(f"REQUEST: Done sending simulation data")
             elif scheme == "smurf":
                 answer = handle_smurf(url)
                 self.request.send(answer)
 
         except Exception as e:
-            logging.info(
+            logger.info(
                 f"REQUEST: Exception while handling request: {traceback.format_exc()}")
             self.request.sendall(pickle.dumps(
                 "{}".format(traceback.format_exc())))
@@ -159,18 +161,19 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     def handle_simnet(self):
         path = self.url_cmps.path
         if path.startswith("/kill"):
-            logging.info("Shutting down server...")
+            logger.info("Shutting down server...")
             self.server.shutdown()
             return
         elif path.startswith("/ping"):
-            logging.info("REQUEST: received ping, pinning back...")
+            logger.info("REQUEST: received ping, pinning back...")
             self.request.send("ping".encode())
             return
         elif path.startswith("/restart"):
             restart_wrapped()
-    
+
+
 def handle_simdata(url):
-    logging.info("REQUEST: Loading simulation data...")
+    logger.info("REQUEST: Loading simulation data...")
     ddict = get_simulation_data(url)
     payload = pickle.dumps(ddict)
     return payload
@@ -179,14 +182,14 @@ def handle_simdata(url):
 def handle_smurf(url):
     cmps = urllib.parse.urlparse(url)
     path = cmps.path
-    
     if path.startswith("/search"):
         d = urllib.parse.parse_qs(cmps.query)
-        d = {k: v[0] if len(v) == 1 else v for k, v in d.items()}
+        logger.info(f"Smurf search with query {d}")
         rv = smurf.search.search(d["pattern"])
+        logger.debug(f"Found results {rv}")
+
     return json.dumps(rv).encode("utf-8")
-        
-        
+
 
 def get_open_port():
     import socket
@@ -255,8 +258,8 @@ def start_server(host, port):
     if port < 0:
         port = get_open_port()
 
-    logging.info("-"*40)
-    logging.info(
+    logger.info("-"*40)
+    logger.info(
         f"Starting server process on host {host} on port {port} with pid {os.getpid()}")
     socketserver.TCPServer.allow_reuse_address = True
     # Create the server, binding to 'host' on port 'port'
@@ -287,17 +290,19 @@ def launch_server(host, port):
             print(port)
             break
 
+
 def restart_wrapped():
     cmd = [os.path.expanduser("~/.local/bin/simdata-net"),
            "server", "--restart"]
 
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+
 def restart(host, port):
-    logging.info("Restarting server")
+    logger.info("Restarting server")
     if check_running():
         pid = read_pid()
-        logging.info(f"Killing old server with pid {pid}")
+        logger.info(f"Killing old server with pid {pid}")
         os.kill(pid, 15)
     if port == -1:
         # reuse old port if none is provided
@@ -305,6 +310,7 @@ def restart(host, port):
     else:
         port = port
     launch_server(host, port)
+
 
 def server(options):
 
@@ -319,9 +325,9 @@ def server(options):
         if (check_running() and read_port() > 0) and (options.port == -1 or options.port == read_port()):
             # if a server is running and the port matches the running server's port, use it
             port = read_port()
-            logging.info(f"Reporting existing server running on port {port}.")
+            logger.info(f"Reporting existing server running on port {port}.")
             print(port)
         else:
             # otherwise launch a new server with this port
-            logging.info("Launching a new server.")
+            logger.info("Launching a new server.")
             launch_server(options.host, options.port)

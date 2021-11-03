@@ -24,17 +24,18 @@ def appdir():
     return appdir
 
 
-logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
+logging.basicConfig(filename=os.path.join(appdir(), "simdata.log"),
                     filemode='a',
                     level=logging.DEBUG,
-                    format='%(asctime)s %(levelname)s %(message)s')
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
+logger = logging.getLogger(__name__)
 
 def client(options):
 
     if options.v:
         stdout_handler = logging.StreamHandler(sys.stdout)
-        logging.getLogger().addHandler(stdout_handler)
+        logger.addHandler(stdout_handler)
 
     if options.host is not None:
         hostname = options.host
@@ -75,7 +76,7 @@ def make_request(url):
     req = urllib.parse.urlparse(url)
     hostname = req.hostname
     
-    logging.debug(f"Received request '{url}'")
+    logger.debug(f"Received request '{url}'")
 
     port = get_hostport(hostname)
     if port <= 0:
@@ -92,7 +93,7 @@ def make_request(url):
 
 
 def ensure_server(hostname):
-    logging.debug(f"Ensure a server runs on '{hostname}'")
+    logger.debug(f"Ensure a server runs on '{hostname}'")
     oldport = read_portfile(hostname)
 
     if oldport == 0 or not ping_server(int(oldport)):
@@ -104,7 +105,7 @@ def ensure_server(hostname):
 
 
 def get_hostname(simid):
-    logging.info(f"Looking up hostname for simid '{simid}'")
+    logger.info(f"Looking up hostname for simid '{simid}'")
     siminfo = smurf.search.search(simid)[0]
     return siminfo["host"]
 
@@ -118,12 +119,12 @@ def read_portfile(hostname):
             rv = int(infile.read().strip())
     except (FileNotFoundError, ValueError):
         rv = 0
-    logging.debug(f"Found port '{rv}' for server on '{hostname}'")
+    logger.debug(f"Found port '{rv}' for server on '{hostname}'")
     return rv
 
 
 def write_portfile(hostname, port):
-    logging.info(f"Saving port '{port}' for host '{hostname}'")
+    logger.info(f"Saving port '{port}' for host '{hostname}'")
     portfile = os.path.join(appdir(), f"{hostname}.port")
     with open(portfile, "w") as outfile:
         print(port, file=outfile)
@@ -135,18 +136,18 @@ def get_hostport(hostname):
 
 
 def start_server_remote(hostname):
-    logging.info(f"Starting a server on host '{hostname}'")
+    logger.info(f"Starting a server on host '{hostname}'")
     cmd = [".local/bin/simdata-net", "server"]
     if hostname != "localhost":
         cmd = ["ssh", hostname] + cmd
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     remoteport = res.stdout.decode().strip()
     if res.returncode != 0:
-        logging.error(
+        logger.error(
             f"Received non-zero return code from server start on '{hostname}'")
-        logging.error(res.stderr.decode().strip())
+        logger.error(res.stderr.decode().strip())
         raise RuntimeError(f"Could not start server on '{hostname}'")
-    logging.info(f"Server runs on port '{remoteport}' on host '{hostname}'")
+    logger.info(f"Server runs on port '{remoteport}' on host '{hostname}'")
 
     if hostname != "localhost":
         localport = get_open_port()
@@ -197,13 +198,13 @@ def dict_filename(d):
 
 
 def send_request(payload, port):
-    logging.debug(f"Sending payload to host '{HOST}' on port '{port}'")
+    logger.debug(f"Sending payload to host '{HOST}' on port '{port}'")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
         sock.connect((HOST, port))
         sock.sendall(payload)
 
-        logging.debug(f"Receiving payload from host '{HOST}' on port '{port}'...")
+        logger.debug(f"Receiving payload from host '{HOST}' on port '{port}'...")
 
         received = sock.recv(4096)
 
@@ -213,14 +214,14 @@ def send_request(payload, port):
                 break
             received += rec
         
-        logging.debug(f"Finished receiving payload from host '{HOST}' on port '{port}'.")
+        logger.debug(f"Finished receiving payload from host '{HOST}' on port '{port}'.")
 
 
     return received
 
 
 def receive_data(url, port):
-    logging.debug(f"Obtaining '{url}' on port '{port}'")
+    logger.debug(f"Obtaining '{url}' on port '{port}'")
 
     received = send_request(url.encode("utf-8"), port)
 
@@ -239,12 +240,12 @@ def receive_data(url, port):
 
 
 def kill_server(port):
-    logging.info(f"Sending kill command to server on port '{port}'")
+    logger.info(f"Sending kill command to server on port '{port}'")
     send_request("simnet://localhost/kill".encode(), port)
 
 
 def restart_server(port):
-    logging.info(f"Sending restart command to server on port '{port}'")
+    logger.info(f"Sending restart command to server on port '{port}'")
     send_request("simnet://localhost/restart".encode(), port)
 
 
@@ -253,19 +254,19 @@ def ping_server(port):
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             # Connect to server and send data
-            logging.info(f"Pinging server '{host}' on port {port}")
+            logger.info(f"Pinging server '{host}' on port {port}")
             sock.connect((HOST, port))
             sock.sendall("simnet://localhost/ping".encode())
 
             received = sock.recv(1028)
-            logging.debug("Received ping")
+            logger.debug("Received ping")
 
         rv = received.decode() == "ping"
     except (ConnectionRefusedError, ConnectionResetError) as e:
-        logging.warning(f"Received '{e}' from pinning port {port}")
+        logger.warning(f"Received '{e}' from pinning port {port}")
         rv = False
 
-    logging.info(f"Ping successful? {rv}")
+    logger.info(f"Ping successful? {rv}")
 
     return rv
 
@@ -281,7 +282,7 @@ def get_open_port():
 
 
 def SSHTunnel(hostname, localport, remoteport):
-    logging.info(
+    logger.info(
         f"Setting up ssh tunnel from local port '{localport}' to host '{hostname}' port '{remoteport}'")
     sshproc = subprocess.Popen(
         ["ssh", "-f", "-N", "-L", f"{localport}:localhost:{remoteport}", hostname], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
