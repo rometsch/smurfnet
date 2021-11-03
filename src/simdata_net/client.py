@@ -140,7 +140,7 @@ def start_server_remote(hostname):
     cmd = [".local/bin/simdata-net", "server"]
     if hostname != "localhost":
         cmd = ["ssh", hostname] + cmd
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=os.path.expanduser("~"))
     remoteport = res.stdout.decode().strip()
     if res.returncode != 0:
         logger.error(
