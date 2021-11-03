@@ -184,9 +184,13 @@ def handle_smurf(url):
     path = cmps.path
     if path.startswith("/search"):
         d = urllib.parse.parse_qs(cmps.query)
+        try:
+            d["pattern"]
+        except KeyError:
+            d["pattern"] = cmps.path.split("/")[-1]
         logger.info(f"Smurf search with query {d}")
         rv = smurf.search.search(d["pattern"])
-        logger.debug(f"Found results {rv}")
+        logger.debug(f"Found {len(rv)} results")
 
     return json.dumps(rv).encode("utf-8")
 
