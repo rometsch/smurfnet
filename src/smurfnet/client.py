@@ -21,12 +21,12 @@ char_limit = 255
 
 
 def appdir():
-    appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
+    appdir = os.path.join("/run/user", f"{os.getuid()}", "smurf")
     os.makedirs(appdir, exist_ok=True)
     return appdir
 
 
-logging.basicConfig(filename=os.path.join(appdir(), "simdata.log"),
+logging.basicConfig(filename=os.path.join(appdir(), "smurf.log"),
                     filemode='a',
                     level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -75,7 +75,7 @@ def handle_options(options, port):
         restart_server(port)
 
 
-def make_request(url):
+def make_request(url, raw=False):
     req = urllib.parse.urlparse(url)
     hostname = req.hostname
 
@@ -86,11 +86,11 @@ def make_request(url):
         port = ensure_server(hostname)
 
     try:
-        rv = receive_data(url, port)
+        rv = receive_data(url, port, raw=raw)
     except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
         if hostname is not None:
             port = ensure_server(hostname)
-            rv = receive_data(url, port)
+            rv = receive_data(url, port, raw=raw)
 
     return rv
 
@@ -228,11 +228,13 @@ def send_request(payload, port):
     return received
 
 
-def receive_data(url, port):
+def receive_data(url, port, raw=False):
     logger.debug(f"Obtaining '{url}' on port '{port}'")
 
     received = send_request(url.encode("utf-8"), port)
 
+    if raw:
+        return received
     try:
         rv = received.decode()
     except UnicodeDecodeError:
@@ -289,6 +291,8 @@ def get_open_port():
     return port
 
 def wrap_ssh_cmd(hostname, cmd):
+    if hostname == "localhost":
+        return cmd, dict()
     logger.debug(f"Getting key path for host '{hostname}'")
     key_path = ensure_key(hostname)
     env = {}

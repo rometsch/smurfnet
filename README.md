@@ -1,2 +1,3 @@
 # smurfnet
-A server to provide simulation data based on simdata through a server client model.
+
+A server-client model running on top of ssh port forwarding to enable communication within the smurf framework.

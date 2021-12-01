@@ -13,24 +13,18 @@ import diskcache
 import simdata
 import smurf.search
 
-from smurfnet.client import (ensure_server, get_hostname, get_hostport,
-                                receive_data)
+from smurfnet.config import Config
 
-try:
-    import simdata.config
-    sdconf = simdata.config.Config()
-    cachedir = sdconf["cachedir"]
-    cache = diskcache.Cache(directory=cachedir)
-except (KeyError, ImportError):
-    cache = None
+from smurfnet.client import (ensure_server, get_hostname, get_hostport,
+                                receive_data, make_request)
 
 def appdir():
-    appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
+    appdir = os.path.join("/run/user", f"{os.getuid()}", "smurf")
     os.makedirs(appdir, exist_ok=True)
     return appdir
 
 
-logging.basicConfig(filename=os.path.join(appdir(), "simdata.log"),
+logging.basicConfig(filename=os.path.join(appdir(), "smurf.log"),
                     filemode='a',
                     level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -98,14 +92,11 @@ def get_data_relay(simid, url):
         f"Using relay ('{hostname}' on port '{port}') to obtain data for simid '{simid}' with query '{url}'")
 
     try:
-        data = cache[url]
-    except (TypeError, KeyError):
-        try:
+        data = receive_data(url, port)
+    except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
+        if hostname is not None:
+            port = ensure_server(hostname)
             data = receive_data(url, port)
-        except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
-            if hostname is not None:
-                port = ensure_server(hostname)
-                data = receive_data(url, port)
 
     ddict = {
         "simid": simid,
@@ -119,6 +110,21 @@ def get_data_relay(simid, url):
     return ddict
 
 
+def relay_request(url, relay):
+    logger.info(
+        f"Using relay '{relay}' for  query '{url}'")
+    print(f"Using relay '{relay}' for  query '{url}'")
+    s = list(urllib.parse.urlsplit(url))
+    s[1] = relay
+    url = urllib.parse.urlunsplit(s)
+    rv = make_request(url, raw=True)
+    return rv
+
+def remove_fragment(url):
+    p = urllib.parse.urlparse(url)
+    rv = p._replace(fragment="").geturl()
+    return rv
+
 class MyTCPHandler(socketserver.BaseRequestHandler):
     """
     The request handler class for our server.
@@ -128,6 +134,21 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     client.
     """
 
+    def __init__(self, *args, **kwargs):
+        self.config = Config()
+
+
+        try:
+            conf = Config()
+            cachedir = conf["cache_dir"]
+            self.cache = diskcache.Cache(directory=cachedir)
+        except (KeyError, ImportError):
+            self.cache = None
+            logger.info(f"Running without cache.")
+
+
+        super().__init__(*args, **kwargs)
+
     def handle(self):
 
         # self.request is the TCP socket connected to the client
@@ -135,21 +156,35 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             url = self.request.recv(4096).decode("utf-8")
             self.url_cmps = urllib.parse.urlparse(url)
             scheme = self.url_cmps.scheme
+            query = urllib.parse.parse_qs(self.url_cmps.query)
+            update_cache = self.url_cmps.fragment == "update"
 
             logger.info("REQUEST: {} wrote:".format(self.client_address[0]))
             logger.info(f"REQUEST: {url}")
             logger.debug(f"Url parsed to {self.url_cmps}")
+            logger.debug(f"Url parsed to query {query}")
+            logger.debug(f"Caching is {'disabled' if update_cache else 'enabled'}")
 
             if scheme == "simnet":
                 self.handle_simnet()
 
-            elif scheme == "simdata":
-                answer = handle_simdata(url)
-                logger.debug(f"REQUEST: Sending simulation data")
-                self.request.send(answer)
-                logger.debug(f"REQUEST: Done sending simulation data")
-            elif scheme == "smurf":
-                answer = handle_smurf(url)
+            else:
+                print(self.cache)
+                if not update_cache and self.cache is not None and url in self.cache:
+                    logger.info(f"Using cached result for '{url}'")
+                    answer = self.cache[url]
+                elif "relay" in self.config.data:
+                    relay = self.config.data["relay"]
+                    logger.info(f"Relaying request to host '{relay}'")
+                    answer = relay_request(url, relay)
+                elif scheme == "simdata":
+                    answer = handle_simdata(url)
+                elif scheme == "smurf":
+                    answer = handle_smurf(url)
+                
+                if self.cache is not None:
+                    self.cache[remove_fragment(url)] = answer
+
                 self.request.send(answer)
 
         except Exception as e:
