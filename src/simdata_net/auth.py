@@ -14,15 +14,16 @@ on the remote host.
 import os
 import subprocess
 
-from smurf import config
+from simdata_net import config
+import logging
 
 def main():
     c = config.Config()
     for host in c["host_list"]:
-        priv_key_path, _ = get_key_paths(host)
+        priv_key_path = get_key_path(host)
         if not os.path.exists(priv_key_path):
             print(f"No smurf ssh key found for host '{host}' : setting up new key...")
-            setup_smurf_ssh_key(host)
+            setup_ssh_key(host)
         else:
             print(f"Smurf ssh key found for host '{host}' : '{priv_key_path}'")
     
@@ -35,14 +36,15 @@ def get_key_dir():
     str
         Path to the key directory.
     """
-    key_dir = os.path.expanduser("~/.smurf/keys")
+    c = config.Config()
+    key_dir = c.data["key_dir"]
     if not os.path.isdir(key_dir):
         os.makedirs(key_dir)
     return key_dir
 
 
-def get_key_paths(host):
-    """ Return the paths to private and public keys.
+def get_key_path(host):
+    """ Return the path the private key.
 
     Parameters
     ----------
@@ -53,13 +55,10 @@ def get_key_paths(host):
     -------
     str
         Path to private key file.
-    str
-        Path to public key file.
     """
     key_dir = get_key_dir()
     priv_key_path = os.path.join(key_dir, "id_rsa_smurf_" + host)
-    pub_key_path = priv_key_path + ".pub"
-    return (priv_key_path, pub_key_path)
+    return priv_key_path
 
 
 def generate_ssh_key(host):
@@ -72,7 +71,7 @@ def generate_ssh_key(host):
     host : str
         Hostname of the remote host to setup keys for.
     """
-    priv_key_path, _ = get_key_paths(host)
+    priv_key_path = get_key_path(host)
     comment = "'limited smurf access from {}@{}'".format(
         os.environ["USER"], os.uname()[1])
     subprocess.run(["ssh-keygen", "-C", comment, "-N",
@@ -92,7 +91,7 @@ def get_pub_key(host):
     str
         Public key and comment.
     """
-    _, pub_key_path = get_key_paths(host)
+    pub_key_path = get_key_path(host) + ".pub"
     with open(pub_key_path, "r") as infile:
         content = infile.read().strip()
     return content
@@ -109,9 +108,9 @@ def copy_ssh_key(host):
     host : str
         Remote host to register key on.
     """
-    preprend = 'command="~/.local/bin/smurf --use-ssh-original-command",no-agent-forwarding,no-port-forwarding,no-pty,no-user-rc,no-X11-forwarding'
+    preprend = 'command="~/.local/bin/simdata-net-shell",permitopen="localhost:*",no-agent-forwarding,no-pty,no-user-rc,no-X11-forwarding'
     content = preprend + " " + get_pub_key(host)
-    _, pub_key_path = get_key_paths(host)
+    pub_key_path = get_key_path(host) + ".pub"
     os.rename(pub_key_path, pub_key_path + ".bak")
     with open(pub_key_path, "w") as outfile:
         outfile.write(content)
@@ -119,7 +118,7 @@ def copy_ssh_key(host):
     os.rename(pub_key_path + ".bak", pub_key_path)
 
 
-def setup_smurf_ssh_key(host):
+def setup_ssh_key(host):
     """ Generates a key for smurf and copy it to the remote host.
 
     Parameters
@@ -127,8 +126,30 @@ def setup_smurf_ssh_key(host):
     host : str
         Hostname of the remote host.
     """
+    logging.info(f"Setting up new ssh key for host '{host}'")
     generate_ssh_key(host)
     copy_ssh_key(host)
+
+def ensure_key(host):
+    """ Create a key if it does not exists and then return the path to it.
+    
+    Attempt to create the key once.
+
+    Parameters
+    ----------
+    str: host
+        Name of the host.
+
+    Returns
+    -------
+    str
+        Path to the private key.
+    """
+    key_path = get_key_path(host)
+    if not os.path.exists(key_path):
+        setup_ssh_key(host)
+    return key_path
+
 
 
 if __name__ == "__main__":

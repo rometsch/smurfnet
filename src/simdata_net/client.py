@@ -12,6 +12,8 @@ import sys
 import time
 import urllib
 
+from simdata_net.auth import ensure_key
+
 HOST = 'localhost'
 
 valid_filename_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
@@ -30,6 +32,7 @@ logging.basicConfig(filename=os.path.join(appdir(), "simdata.log"),
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 logger = logging.getLogger(__name__)
+
 
 def client(options):
 
@@ -75,7 +78,7 @@ def handle_options(options, port):
 def make_request(url):
     req = urllib.parse.urlparse(url)
     hostname = req.hostname
-    
+
     logger.debug(f"Received request '{url}'")
 
     port = get_hostport(hostname)
@@ -137,10 +140,14 @@ def get_hostport(hostname):
 
 def start_server_remote(hostname):
     logger.info(f"Starting a server on host '{hostname}'")
-    cmd = [".local/bin/simdata-net", "server"]
+    cmd = []
     if hostname != "localhost":
-        cmd = ["ssh", hostname] + cmd
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=os.path.expanduser("~"))
+        cmd = ["ssh", hostname]
+    cmd, env = wrap_ssh_cmd(hostname, cmd)
+    cmd += [".local/bin/simdata-net", "server"]
+    logging.debug(cmd)
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, env=env,
+                         stderr=subprocess.PIPE, cwd=os.path.expanduser("~"))
     remoteport = res.stdout.decode().strip()
     if res.returncode != 0:
         logger.error(
@@ -204,7 +211,8 @@ def send_request(payload, port):
         sock.connect((HOST, port))
         sock.sendall(payload)
 
-        logger.debug(f"Receiving payload from host '{HOST}' on port '{port}'...")
+        logger.debug(
+            f"Receiving payload from host '{HOST}' on port '{port}'...")
 
         received = sock.recv(4096)
 
@@ -213,9 +221,9 @@ def send_request(payload, port):
             if rec == b'':
                 break
             received += rec
-        
-        logger.debug(f"Finished receiving payload from host '{HOST}' on port '{port}'.")
 
+        logger.debug(
+            f"Finished receiving payload from host '{HOST}' on port '{port}'.")
 
     return received
 
@@ -280,11 +288,25 @@ def get_open_port():
     s.close()
     return port
 
+def wrap_ssh_cmd(hostname, cmd):
+    logger.debug(f"Getting key path for host '{hostname}'")
+    key_path = ensure_key(hostname)
+    env = {}
+    if os.path.exists(key_path):
+        logger.debug(f"Key exists, using it.")
+        cmd += ["-i", key_path, "-S", "none"]
+        env["SSH_AUTH_SOCK"] = ""
+    return cmd, env
+    
 
 def SSHTunnel(hostname, localport, remoteport):
     logger.info(
         f"Setting up ssh tunnel from local port '{localport}' to host '{hostname}' port '{remoteport}'")
+    cmd = ["ssh", "-f", "-N", "-L",
+           f"{localport}:localhost:{remoteport}", hostname]
+    cmd, env = wrap_ssh_cmd(hostname, cmd)
+    
     sshproc = subprocess.Popen(
-        ["ssh", "-f", "-N", "-L", f"{localport}:localhost:{remoteport}", hostname], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
     time.sleep(0.1)
     return sshproc
