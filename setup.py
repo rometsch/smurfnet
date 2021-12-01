@@ -9,7 +9,8 @@ setup(name="simdata-net"
         ,packages=find_namespace_packages(where="src")
         ,install_requires=["simdata", "diskcache", "pyyaml"]
         ,entry_points = {
-                'console_scripts': ['simdata-net=simdata_net._command_line_:main'],
+                'console_scripts': ['simdata-net=simdata_net._command_line_:main',
+                "simdata-net-shell=simdata_net.shell:main"],
         },
         zip_safe=True
         )
