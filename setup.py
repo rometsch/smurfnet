@@ -7,7 +7,7 @@ setup(name="simdata-net"
         ,author="Thomas Rometsch"
         ,package_dir={'': 'src'}
         ,packages=find_namespace_packages(where="src")
-        ,install_requires=["simdata", "diskcache"]
+        ,install_requires=["simdata", "diskcache", "pyyaml"]
         ,entry_points = {
                 'console_scripts': ['simdata-net=simdata_net._command_line_:main'],
         },
