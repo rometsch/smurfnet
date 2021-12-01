@@ -12,7 +12,7 @@ import sys
 import time
 import urllib
 
-from simdata_net.auth import ensure_key
+from smurfnet.auth import ensure_key
 
 HOST = 'localhost'
 
@@ -144,7 +144,7 @@ def start_server_remote(hostname):
     if hostname != "localhost":
         cmd = ["ssh", hostname]
     cmd, env = wrap_ssh_cmd(hostname, cmd)
-    cmd += [".local/bin/simdata-net", "server"]
+    cmd += [".local/bin/smurfnet", "server"]
     logging.debug(cmd)
     res = subprocess.run(cmd, stdout=subprocess.PIPE, env=env,
                          stderr=subprocess.PIPE, cwd=os.path.expanduser("~"))

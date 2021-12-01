@@ -14,7 +14,7 @@ on the remote host.
 import os
 import subprocess
 
-from simdata_net import config
+from smurfnet import config
 import logging
 
 def main():
@@ -108,7 +108,7 @@ def copy_ssh_key(host):
     host : str
         Remote host to register key on.
     """
-    preprend = 'command="~/.local/bin/simdata-net-shell",permitopen="localhost:*",no-agent-forwarding,no-pty,no-user-rc,no-X11-forwarding'
+    preprend = 'command="~/.local/bin/smurfnet-shell",permitopen="localhost:*",no-agent-forwarding,no-pty,no-user-rc,no-X11-forwarding'
     content = preprend + " " + get_pub_key(host)
     pub_key_path = get_key_path(host) + ".pub"
     os.rename(pub_key_path, pub_key_path + ".bak")

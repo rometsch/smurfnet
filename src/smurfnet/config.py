@@ -3,7 +3,7 @@ import os
 import sys
 import yaml
 
-home_path = os.path.join(os.path.expanduser("~"), ".simdata-net")
+home_path = os.path.join(os.path.expanduser("~"), ".smurfnet")
 
 information_types = [
     "cache_dir",
@@ -120,7 +120,7 @@ class Config:
         self.data[key] = val
 
     def save(self):
-        self.data["type"] = "simdata-net config"
+        self.data["type"] = "smurfnet config"
         self.data["version"] = "0.1"
         with open(self.config_file, "w") as outfile:
             yaml.dump(self.data, outfile)

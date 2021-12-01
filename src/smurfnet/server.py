@@ -13,7 +13,7 @@ import diskcache
 import simdata
 import smurf.search
 
-from simdata_net.client import (ensure_server, get_hostname, get_hostport,
+from smurfnet.client import (ensure_server, get_hostname, get_hostport,
                                 receive_data)
 
 try:
@@ -282,7 +282,7 @@ def launch_server(host, port):
         port = get_open_port()
 
     write_port(-1)
-    cmd = [os.path.expanduser("~/.local/bin/simdata-net"),
+    cmd = [os.path.expanduser("~/.local/bin/smurfnet"),
            "server", "--host", host, "--port", f"{port}", "--start"]
 
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -296,7 +296,7 @@ def launch_server(host, port):
 
 
 def restart_wrapped():
-    cmd = [os.path.expanduser("~/.local/bin/simdata-net"),
+    cmd = [os.path.expanduser("~/.local/bin/smurfnet"),
            "server", "--restart"]
 
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

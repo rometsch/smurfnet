@@ -7,11 +7,11 @@ def main():
     options.func(options)
 
 def run_server(options):
-    from simdata_net.server import server
+    from smurfnet.server import server
     server(options)
 
 def run_client(options):
-    from simdata_net.client import client
+    from smurfnet.client import client
     client(options)
 
 
@@ -42,7 +42,7 @@ def parse_cli():
     return options
 
 def build_config_parser(subparsers):
-    from simdata_net.config import build_parser
+    from smurfnet.config import build_parser
     config_parser = subparsers.add_parser("config", help="Handle config.")
     build_parser(config_parser)
 
