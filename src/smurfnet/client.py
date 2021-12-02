@@ -75,7 +75,7 @@ def handle_options(options, port):
         restart_server(port)
 
 
-def make_request(url, raw=False):
+def make_request(url, raw=False, sizes=None):
     req = urllib.parse.urlparse(url)
     hostname = req.hostname
 
@@ -86,11 +86,11 @@ def make_request(url, raw=False):
         port = ensure_server(hostname)
 
     try:
-        rv = receive_data(url, port, raw=raw)
+        rv = receive_data(url, port, raw=raw, sizes=sizes)
     except (ConnectionRefusedError, ConnectionResetError, ConnectionRefusedError):
         if hostname is not None:
             port = ensure_server(hostname)
-            rv = receive_data(url, port, raw=raw)
+            rv = receive_data(url, port, raw=raw, sizes=sizes)
 
     return rv
 
@@ -204,7 +204,7 @@ def dict_filename(d):
     return rv
 
 
-def send_request(payload, port):
+def send_request(payload, port, sizes=None):
     logger.debug(f"Sending payload to host '{HOST}' on port '{port}'")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         # Connect to server and send data
@@ -214,13 +214,34 @@ def send_request(payload, port):
         logger.debug(
             f"Receiving payload from host '{HOST}' on port '{port}'...")
 
-        received = sock.recv(4096)
+        received = sock.recv(1024)
 
-        for n in range(1000):
-            rec = sock.recv(16777216)
+        if sizes is None:
+            sizes = []
+            k = 1
+            step = 1
+            for n in range(10,24,step):
+                sizes += [2**n]*k
+        
+        max_size = 16777216
+        if sizes[-1] < max_size:
+            sizes += [max_size]
+        
+        finished = False
+        for size in sizes:
+            rec = sock.recv(size)
             if rec == b'':
+                finished = True
                 break
             received += rec
+        # finished = False
+
+        if not finished:
+            for n in range(1000):
+                rec = sock.recv(sizes[-1])
+                if rec == b'':
+                    break
+                received += rec
 
         logger.debug(
             f"Finished receiving payload from host '{HOST}' on port '{port}'.")
@@ -228,10 +249,10 @@ def send_request(payload, port):
     return received
 
 
-def receive_data(url, port, raw=False):
+def receive_data(url, port, raw=False, sizes=None):
     logger.debug(f"Obtaining '{url}' on port '{port}'")
 
-    received = send_request(url.encode("utf-8"), port)
+    received = send_request(url.encode("utf-8"), port, sizes=sizes)
 
     if raw:
         return received
