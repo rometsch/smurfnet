@@ -25,16 +25,14 @@ def appdir():
     os.makedirs(appdir, exist_ok=True)
     return appdir
 
+logger = logging.getLogger(__name__)
 
-logging.basicConfig(filename=os.path.join(appdir(), "smurf.log"),
+def client(options):
+
+    logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
                     filemode='a',
                     level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-logger = logging.getLogger(__name__)
-
-
-def client(options):
 
     if options.v:
         stdout_handler = logging.StreamHandler(sys.stdout)
@@ -76,6 +74,13 @@ def handle_options(options, port):
 
 
 def make_request(url, raw=False, sizes=None):
+
+    logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
+                        filemode='a',
+                        level=logging.DEBUG,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+
     req = urllib.parse.urlparse(url)
     hostname = req.hostname
 

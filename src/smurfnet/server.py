@@ -23,12 +23,6 @@ def appdir():
     os.makedirs(appdir, exist_ok=True)
     return appdir
 
-
-logging.basicConfig(filename=os.path.join(appdir(), "smurf.log"),
-                    filemode='a',
-                    level=logging.DEBUG,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
 logger = logging.getLogger(__name__)
 
 def parse_data_url(query_str):
@@ -154,13 +148,13 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         # self.request is the TCP socket connected to the client
         try:
             url = self.request.recv(4096).decode("utf-8")
+            logger.info("REQUEST: {} wrote:".format(self.client_address[0]))
+            logger.info(f"REQUEST: {url}")
             self.url_cmps = urllib.parse.urlparse(url)
             scheme = self.url_cmps.scheme
             query = urllib.parse.parse_qs(self.url_cmps.query)
             update_cache = self.url_cmps.fragment == "update"
 
-            logger.info("REQUEST: {} wrote:".format(self.client_address[0]))
-            logger.info(f"REQUEST: {url}")
             logger.debug(f"Url parsed to {self.url_cmps}")
             logger.debug(f"Url parsed to query {query}")
             logger.debug(f"Caching is {'disabled' if update_cache else 'enabled'}")
@@ -352,6 +346,11 @@ def restart(host, port):
 
 
 def server(options):
+
+    logging.basicConfig(filename=os.path.join(appdir(), "server.log"),
+                        filemode='a',
+                        level=logging.DEBUG,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     if options.start:
         # definitely start a server
