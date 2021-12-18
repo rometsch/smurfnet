@@ -163,7 +163,6 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                 self.handle_simnet()
 
             else:
-                print(self.cache)
                 if not update_cache and self.cache is not None and url in self.cache:
                     logger.info(f"Using cached result for '{url}'")
                     answer = self.cache[url]
