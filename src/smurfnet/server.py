@@ -14,7 +14,8 @@ import simdata
 import smurf.search
 
 from smurfnet.client import (ensure_server, get_hostname, get_hostport,
-                                receive_data)
+                             receive_data)
+from smurfnet.config import appdir
 
 try:
     import simdata.config
@@ -24,18 +25,13 @@ try:
 except (KeyError, ImportError):
     cache = None
 
-def appdir():
-    appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
-    os.makedirs(appdir, exist_ok=True)
-    return appdir
-
-
 logging.basicConfig(filename=os.path.join(appdir(), "simdata.log"),
                     filemode='a',
                     level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 logger = logging.getLogger(__name__)
+
 
 def parse_data_url(query_str):
     d = urllib.parse.parse_qs(query_str)

@@ -13,17 +13,12 @@ import time
 import urllib
 
 from smurfnet.auth import ensure_key
+from smurfnet.config import appdir
 
 HOST = 'localhost'
 
 valid_filename_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
 char_limit = 255
-
-
-def appdir():
-    appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
-    os.makedirs(appdir, exist_ok=True)
-    return appdir
 
 
 logging.basicConfig(filename=os.path.join(appdir(), "simdata.log"),
