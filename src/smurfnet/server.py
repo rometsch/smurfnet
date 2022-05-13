@@ -110,7 +110,6 @@ def get_data_relay(simid, url):
 def relay_request(url, relay):
     logger.info(
         f"Using relay '{relay}' for  query '{url}'")
-    print(f"Using relay '{relay}' for  query '{url}'")
     s = list(urllib.parse.urlsplit(url))
     s[1] = relay
     url = urllib.parse.urlunsplit(s)
@@ -366,7 +365,6 @@ def server(options):
             # if a server is running and the port matches the running server's port, use it
             port = read_port()
             logger.info(f"Reporting existing server running on port {port}.")
-            print(port)
         else:
             # otherwise launch a new server with this port
             logger.info("Launching a new server.")
