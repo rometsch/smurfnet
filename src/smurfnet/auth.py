@@ -114,7 +114,7 @@ def copy_ssh_key(host):
     os.rename(pub_key_path, pub_key_path + ".bak")
     with open(pub_key_path, "w") as outfile:
         outfile.write(content)
-    subprocess.run(["ssh-copy-id", "-i", pub_key_path, host], check=True)
+    subprocess.run(["ssh-copy-id", "-f", "-i", pub_key_path, host], check=True)
     os.rename(pub_key_path + ".bak", pub_key_path)
 
 
