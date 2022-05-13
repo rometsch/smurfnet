@@ -13,7 +13,7 @@ import time
 import urllib
 
 from smurfnet.auth import ensure_key
-from smurfnet.config import appdir
+from smurfnet.config import (appdir,Config)
 
 HOST = 'localhost'
 
@@ -21,6 +21,8 @@ valid_filename_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
 char_limit = 255
 
 logger = logging.getLogger(__name__)
+
+config = Config()
 
 def client(options):
 
@@ -117,6 +119,10 @@ def get_hostname(simid):
 def read_portfile(hostname):
     if hostname == "127.0.0.1":
         hostname = "localhost"
+    if hostname in config["host_list"]:
+        port = config["host_list"][hostname]
+        return port
+    
     portfile = os.path.join(appdir(), f"{hostname}.port")
     try:
         with open(portfile, "r") as infile:
