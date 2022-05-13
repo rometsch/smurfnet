@@ -13,23 +13,19 @@ import time
 import urllib
 
 from smurfnet.auth import ensure_key
+from smurfnet.config import appdir
 
 HOST = 'localhost'
 
 valid_filename_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
 char_limit = 255
 
-
-def appdir():
-    appdir = os.path.join("/run/user", f"{os.getuid()}", "smurf")
-    os.makedirs(appdir, exist_ok=True)
-    return appdir
-
 logger = logging.getLogger(__name__)
 
 def client(options):
 
     logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
+
                     filemode='a',
                     level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

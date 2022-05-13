@@ -12,6 +12,12 @@ information_types = [
     "cache_dir"
 ]
 
+
+def appdir():
+    appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
+    os.makedirs(appdir, exist_ok=True)
+    return appdir
+
 def main(parser=None):
     if parser is None:
         import argparse

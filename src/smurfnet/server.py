@@ -13,7 +13,7 @@ import diskcache
 import simdata
 import smurf.search
 
-from smurfnet.config import Config
+from smurfnet.config import (Config, appdir)
 
 from smurfnet.client import (ensure_server, get_hostname, get_hostport,
                                 receive_data, make_request)
@@ -24,6 +24,9 @@ def appdir():
     return appdir
 
 logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
+
 
 def parse_data_url(query_str):
     d = urllib.parse.parse_qs(query_str)
