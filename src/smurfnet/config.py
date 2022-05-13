@@ -8,7 +8,8 @@ home_path = os.path.join(os.path.expanduser("~"), ".smurfnet")
 information_types = [
     "cache_dir",
     "key_dir",
-    "relay"
+    "relay",
+    "cache_dir"
 ]
 
 
