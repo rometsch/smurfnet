@@ -18,11 +18,6 @@ from smurfnet.config import (Config, appdir)
 from smurfnet.client import (ensure_server, get_hostname, get_hostport,
                                 receive_data, make_request)
 
-def appdir():
-    appdir = os.path.join("/run/user", f"{os.getuid()}", "smurf")
-    os.makedirs(appdir, exist_ok=True)
-    return appdir
-
 logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
