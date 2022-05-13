@@ -20,9 +20,6 @@ from smurfnet.client import (ensure_server, get_hostname, get_hostport,
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
-
 def parse_data_url(query_str):
     d = urllib.parse.parse_qs(query_str)
     d = {k: v[0] for k, v in d.items()}
