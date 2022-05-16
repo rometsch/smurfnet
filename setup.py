@@ -2,7 +2,7 @@
 from setuptools import setup, find_namespace_packages
 
 setup(name="smurfnet"
-        ,version="0.7"
+        ,version="0.7.1"
         ,description="Client server model for using smurf on a network."
         ,author="Thomas Rometsch"
         ,package_dir={'': 'src'}
