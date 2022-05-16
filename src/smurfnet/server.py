@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import logging
 import os
+import socket
 import pickle
 import socketserver
 import subprocess
@@ -177,8 +178,14 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
         except Exception as e:
             logger.info(
                 f"REQUEST: Exception while handling request: {traceback.format_exc()}")
-            self.request.sendall(pickle.dumps(
-                "{}".format(traceback.format_exc())))
+            answer = "{}".format(traceback.format_exc())
+            answer = answer.splitlines()
+            hostname = socket.gethostname()
+            rv = []
+            for line in answer:
+                rv.append(f"{hostname} : {line}")
+            rv = "\n".join(rv)
+            self.request.sendall(pickle.dumps(rv))
 
     def handle_simnet(self):
         path = self.url_cmps.path
@@ -343,7 +350,7 @@ def server(options):
     logging.basicConfig(filename=os.path.join(appdir(), "server.log"),
                         filemode='a',
                         level=logging.DEBUG,
-                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                        format=socket.gethostname() + ' : %(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     if options.start:
         # definitely start a server

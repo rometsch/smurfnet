@@ -30,7 +30,8 @@ def client(options):
 
                     filemode='a',
                     level=logging.DEBUG,
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                    format=socket.gethostname() + ' : %(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 
     if options.v:
         stdout_handler = logging.StreamHandler(sys.stdout)
