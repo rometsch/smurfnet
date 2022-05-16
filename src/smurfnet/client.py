@@ -119,8 +119,8 @@ def get_hostname(simid):
 def read_portfile(hostname):
     if hostname == "127.0.0.1":
         hostname = "localhost"
-    if hostname in config["host_list"]:
-        port = config["host_list"][hostname]
+    if "hosts" in config.data and hostname in config["hosts"]:
+        port = config["hosts"][hostname]
         return port
     
     portfile = os.path.join(appdir(), f"{hostname}.port")

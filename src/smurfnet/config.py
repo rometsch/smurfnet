@@ -9,7 +9,8 @@ information_types = [
     "cache_dir",
     "key_dir",
     "relay",
-    "cache_dir"
+    "cache_dir",
+    "hosts"
 ]
 
 
