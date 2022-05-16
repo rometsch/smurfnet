@@ -211,15 +211,27 @@ def handle_simdata(url):
 def handle_smurf(url):
     cmps = urllib.parse.urlparse(url)
     path = cmps.path
-    if path.startswith("/search"):
-        d = urllib.parse.parse_qs(cmps.query)
-        try:
-            d["pattern"]
-        except KeyError:
+    d = urllib.parse.parse_qs(cmps.query)
+    try:
+        d["pattern"]
+        if d["pattern"] == "":
             d["pattern"] = cmps.path.split("/")[-1]
-        logger.info(f"Smurf search with query {d}")
+    except KeyError:
+        d["pattern"] = cmps.path.split("/")[-1]
+
+    logging.debug(f"Smurf request with url {url}, cmps {cmps}, d {d}")
+
+    if path.startswith("/search"):
+        logger.info(f"Smurf search")
         rv = smurf.search.search(d["pattern"])
         logger.debug(f"Found {len(rv)} results")
+
+    elif path.startswith("/verify"):
+        logger.info(f"Smurf verify")
+        rv = smurf.search.search(d["pattern"], ensure_exist=True)
+        logger.debug(f"Found {len(rv)} results")
+    else:
+        rv = {}
 
     return json.dumps(rv).encode("utf-8")
 
