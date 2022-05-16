@@ -323,6 +323,7 @@ def wrap_ssh_cmd(hostname, cmd):
         return cmd, dict()
     logger.debug(f"Getting key path for host '{hostname}'")
     key_path = ensure_key(hostname)
+    logger.debug(f"Found key path '{key_path}'")
     env = {}
     if os.path.exists(key_path):
         logger.debug(f"Key exists, using it.")
