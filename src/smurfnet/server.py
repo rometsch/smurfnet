@@ -228,7 +228,7 @@ def get_open_port():
 
 
 def write_port(port):
-    portfile = os.path.join(appdir(), "port")
+    portfile = os.path.join(appdir(), "localhost.port")
     with open(portfile, "w") as outfile:
         print(f"{port}", file=outfile)
 
@@ -241,7 +241,7 @@ def write_pid():
 
 
 def read_port():
-    filename = os.path.join(appdir(), "port")
+    filename = os.path.join(appdir(), "localhost.port")
     try:
         with open(filename, "r") as infile:
             rv = int(infile.read().strip())
@@ -357,6 +357,7 @@ def server(options):
             # if a server is running and the port matches the running server's port, use it
             port = read_port()
             logger.info(f"Reporting existing server running on port {port}.")
+            print(port)
         else:
             # otherwise launch a new server with this port
             logger.info("Launching a new server.")
