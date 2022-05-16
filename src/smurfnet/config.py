@@ -14,7 +14,7 @@ information_types = [
 
 
 def appdir():
-    appdir = os.path.join("/run/user", f"{os.getuid()}", "simdata")
+    appdir = os.path.join("/run/user", f"{os.getuid()}", "smurf")
     os.makedirs(appdir, exist_ok=True)
     return appdir
 
