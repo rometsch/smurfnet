@@ -303,6 +303,16 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 
 def start_server(host, port):
+    """ Start the server in this process and server forever.
+    This function should not be called manually. Use launch_server instead.
+    
+    Parameters
+    ----------
+    host: str
+        Interface to server on.
+    port: int
+        Port number to server on.
+    """
 
     if port < 0:
         port = get_open_port()
@@ -323,9 +333,7 @@ def start_server(host, port):
 
 
 def launch_server(host, port):
-    if port <= 0:
-        port = get_open_port()
-
+    port = decide_port(port)
     write_port(-1)
     cmd = [os.path.expanduser("~/.local/bin/smurfnet"),
            "server", "--host", host, "--port", f"{port}", "--start"]
@@ -346,18 +354,27 @@ def restart_wrapped():
 
     subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+def decide_port(port):
+    if port is None or port <= 0:
+        # check config file for port
+        config = Config()
+        try:
+            port = int(config["port"])
+        except (KeyError, TypeError):
+            # attempt to read the port
+            port = read_port()
+    if port is None or port <= 0:
+        # no portfile
+        port = get_open_port()
+    return port
 
 def restart(host, port):
     logger.info("Restarting server")
+    port = decide_port(port)
     if check_running():
         pid = read_pid()
         logger.info(f"Killing old server with pid {pid}")
         os.kill(pid, 15)
-    if port == -1:
-        # reuse old port if none is provided
-        port = read_port()
-    else:
-        port = port
     launch_server(host, port)
 
 

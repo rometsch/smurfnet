@@ -10,7 +10,8 @@ information_types = [
     "key_dir",
     "relay",
     "cache_dir",
-    "hosts"
+    "hosts",
+    "port"
 ]
 
 
