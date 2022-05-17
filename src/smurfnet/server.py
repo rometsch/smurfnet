@@ -10,6 +10,8 @@ import traceback
 import urllib
 import json
 
+from datetime import datetime
+
 import diskcache
 import simdata
 import smurf.search
@@ -184,7 +186,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             rv = []
             for line in answer:
                 rv.append(f"{hostname} : {line}")
-            rv = "\n".join(rv)
+            rv = f"{hostname} : exception occurred at {datetime.now()}: \n" + "\n".join(rv)
             self.request.sendall(pickle.dumps(rv))
 
     def handle_simnet(self):
