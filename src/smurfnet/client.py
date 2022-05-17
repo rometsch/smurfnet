@@ -86,6 +86,7 @@ def make_request(url, raw=False, sizes=None):
     logger.debug(f"Received request '{url}'")
 
     port = get_hostport(hostname)
+    logger.debug(f"Making request on port {port}")
     if port <= 0:
         port = ensure_server(hostname)
 
@@ -122,7 +123,9 @@ def read_portfile(hostname):
         hostname = "localhost"
     if "hosts" in config.data and hostname in config["hosts"]:
         port = config["hosts"][hostname]
-        return port
+        logger.debug(f"Found port {port} for host {hostname}")
+        if port > 0:
+            return port
     
     portfile = os.path.join(appdir(), f"{hostname}.port")
     try:
