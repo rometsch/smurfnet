@@ -50,13 +50,15 @@ def get_simulation_data(url):
 def get_data_local(url):
     logger.debug(f"Obtaining local simdata with url '{url}'")
     req = urllib.parse.urlparse(url)
+    to_update = req.fragment == "update"
+
 
     simid, query = parse_data_url(req.query)
 
     logger.debug(
         f"Handling simid='{simid}' with action '{req.path}' and query '{query}'")
 
-    d = simdata.SData(simid)
+    d = simdata.SData(simid, search_remote=False, update=to_update)
 
     if req.path.startswith("/get"):
         query_dict = query.copy()
