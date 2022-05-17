@@ -26,7 +26,7 @@ config = Config()
 
 def client(options):
 
-    logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
+    logging.basicConfig(filename=os.path.join(appdir(), "log"),
 
                     filemode='a',
                     level=logging.DEBUG,
@@ -74,7 +74,7 @@ def handle_options(options, port):
 
 def make_request(url, raw=False, sizes=None):
 
-    logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
+    logging.basicConfig(filename=os.path.join(appdir(), "log"),
                         filemode='a',
                         level=logging.DEBUG,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

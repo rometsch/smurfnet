@@ -380,7 +380,7 @@ def restart(host, port):
 
 def server(options):
 
-    logging.basicConfig(filename=os.path.join(appdir(), "server.log"),
+    logging.basicConfig(filename=os.path.join(appdir(), "log"),
                         filemode='a',
                         level=logging.DEBUG,
                         format=socket.gethostname() + ' : %(asctime)s - %(name)s - %(levelname)s - %(message)s')
