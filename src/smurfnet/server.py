@@ -128,19 +128,24 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
     """
 
     def __init__(self, *args, **kwargs):
-        self.config = Config()
-
-
         try:
-            conf = Config()
-            cachedir = conf["cache_dir"]
-            self.cache = diskcache.Cache(directory=cachedir)
-        except (KeyError, ImportError):
-            self.cache = None
-            logger.info(f"Running without cache.")
+            self.config = Config()
 
 
-        super().__init__(*args, **kwargs)
+            try:
+                conf = Config()
+                cachedir = conf["cache_dir"]
+                self.cache = diskcache.Cache(directory=cachedir)
+            except Exception as e:
+                self.cache = None
+                logger.info(f"Running without cache because {e}")
+
+
+            super().__init__(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Exception {e}")
+            raise
+
 
     def handle(self):
 
@@ -326,11 +331,15 @@ def start_server(host, port):
     write_port(port)
     write_pid()
 
-    with ThreadedTCPServer((host, port), MyTCPHandler) as server:
-        # Activate the server; this will keep running until you
-        # interrupt the program with Ctrl-C
-        server.serve_forever()
-
+    try:
+        with ThreadedTCPServer((host, port), MyTCPHandler) as server:
+            # Activate the server; this will keep running until you
+            # interrupt the program with Ctrl-C
+            logger.debug("Now servering...")
+            server.serve_forever()
+    except Exception as e:
+        logger.error(f"Received {e}")
+        raise
 
 def launch_server(host, port):
     port = decide_port(port)

@@ -263,7 +263,10 @@ def send_request(payload, port, sizes=None):
 def receive_data(url, port, raw=False, sizes=None):
     logger.debug(f"Obtaining '{url}' on port '{port}'")
 
-    received = send_request(url.encode("utf-8"), port, sizes=sizes)
+    try:
+        received = send_request(url.encode("utf-8"), port, sizes=sizes)
+    except Exception as e:
+        logger.error(f"Received {e}")
 
     if raw:
         return received
