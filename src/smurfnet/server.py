@@ -13,7 +13,7 @@ import json
 from datetime import datetime
 
 import diskcache
-import simdata
+import disgrid
 import smurf.search
 
 from smurfnet.config import (Config, appdir)
@@ -48,7 +48,7 @@ def get_simulation_data(url):
 
 
 def get_data_local(url):
-    logger.debug(f"Obtaining local simdata with url '{url}'")
+    logger.debug(f"Obtaining local disgrid data with url '{url}'")
     req = urllib.parse.urlparse(url)
     to_update = req.fragment == "update"
 
@@ -58,7 +58,7 @@ def get_data_local(url):
     logger.debug(
         f"Handling simid='{simid}' with action '{req.path}' and query '{query}'")
 
-    d = simdata.SData(simid, search_remote=False, update=to_update)
+    d = disgrid.SData(simid, search_remote=False, update=to_update)
 
     if req.path.startswith("/get"):
         query_dict = query.copy()
@@ -174,8 +174,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     relay = self.config.data["relay"]
                     logger.info(f"Relaying request to host '{relay}'")
                     answer = relay_request(url, relay)
-                elif scheme == "simdata":
-                    answer = handle_simdata(url)
+                elif scheme == "disgrid":
+                    answer = handle_disgrid(url)
                 elif scheme == "smurf":
                     answer = handle_smurf(url)
                 
@@ -210,7 +210,7 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
             restart_wrapped()
 
 
-def handle_simdata(url):
+def handle_disgrid(url):
     logger.info("REQUEST: Loading simulation data...")
     ddict = get_simulation_data(url)
     payload = pickle.dumps(ddict)

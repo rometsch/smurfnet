@@ -28,5 +28,5 @@ else
 	# copy files
 	rsync -r --exclude "src/*.egg-info" src setup.py $HOST:$REMOTE_TMP_DIR
 	# install and clean up
-	ssh $HOST "cd $REMOTE_TMP_DIR; python3 setup.py install --user; cd -; rm -rf $REMOTE_TMP_DIR" 1>/dev/null
+	ssh $HOST sh -c "\"cd $REMOTE_TMP_DIR; python3 setup.py install --user; cd -; rm -rf $REMOTE_TMP_DIR\"" #1>/dev/null
 fi
