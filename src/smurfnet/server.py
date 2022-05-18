@@ -178,6 +178,8 @@ class MyTCPHandler(socketserver.BaseRequestHandler):
                     answer = handle_disgrid(url)
                 elif scheme == "smurf":
                     answer = handle_smurf(url)
+                else:
+                    answer = pickle.dumps(f"Scheme '{scheme}' not supported by smurfnet on server '{socket.gethostname()}'.")
                 
                 if self.cache is not None:
                     self.cache[remove_fragment(url)] = answer
