@@ -10,7 +10,7 @@ def restart_server():
 
 def view_log():
     try:
-        run(["tail", "-f", f"/run/user/{os.geteuid()}/smurfnet/log"])
+        run(["tail", "-f", f"/run/user/{os.geteuid()}/smurfnet/server.log"])
     except KeyboardInterrupt:
         pass
 

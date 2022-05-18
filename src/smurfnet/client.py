@@ -26,7 +26,7 @@ config = Config()
 
 def client(options):
 
-    logging.basicConfig(filename=os.path.join(appdir(), "log"),
+    logging.basicConfig(filename=os.path.join(appdir(), "client.log"),
 
                     filemode='a',
                     level=logging.DEBUG,
