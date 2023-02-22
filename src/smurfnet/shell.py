@@ -9,8 +9,11 @@ def restart_server():
     run([os.path.expanduser("~/.local/bin/smurfnet"), "server", "--restart"])
 
 def view_log():
+    logfile = f"/run/user/{os.geteuid()}/smurfnet/server.log"
+    if not os.path.exist(logfile):
+        logfile = os.path.expanduser("~/.smurfnet/appdir/server.log")
     try:
-        run(["tail", "-f", f"/run/user/{os.geteuid()}/smurfnet/server.log"])
+        run(["tail", "-f", logfile])
     except KeyboardInterrupt:
         pass
 
