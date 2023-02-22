@@ -10,7 +10,7 @@ import smurf.search
 import logging
 import sys
 import time
-import urllib
+import urllib.parse
 
 from smurfnet.auth import ensure_key
 from smurfnet.config import (appdir,Config)
